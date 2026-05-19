@@ -37,6 +37,9 @@ app.include_router(ai_router)
 app.include_router(admin_router)
 app.include_router(me_router)
 
+_flutter_web_dir = (
+    Path(__file__).resolve().parents[1] / "../flutter_app/build/web"
+).resolve()
 
 @app.get("/")
 def root() -> dict:

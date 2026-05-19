@@ -22,4 +22,22 @@ class ExerciseApi {
         .map(Exercise.fromJson)
         .toList();
   }
+
+  Future<Exercise> fetchExerciseDetail(String exerciseId) async {
+    final uri = Uri.parse('${Env.apiBaseUrl}/exercises/$exerciseId');
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Backend error: ${response.statusCode}');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>?;
+
+    if (data == null) {
+      throw Exception('Backend error: missing exercise payload');
+    }
+
+    return Exercise.fromJson(data);
+  }
 }

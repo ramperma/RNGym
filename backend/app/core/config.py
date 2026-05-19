@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     database_url: str = "postgresql+psycopg://gym:gym@localhost:5432/gym_app"
+    ai_provider: str = "backend-unconfigured"
+    ai_enabled: bool = False
 
     secret_key: str = "changeme-dev-secret-key-replace-in-production"
     algorithm: str = "HS256"

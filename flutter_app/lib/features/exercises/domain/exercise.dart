@@ -4,6 +4,10 @@ class Exercise {
   final String muscleGroup;
   final String difficulty;
   final String equipment;
+  final String description;
+  final String instructions;
+  final int defaultSets;
+  final String defaultReps;
 
   const Exercise({
     required this.id,
@@ -11,6 +15,10 @@ class Exercise {
     required this.muscleGroup,
     required this.difficulty,
     required this.equipment,
+    required this.description,
+    required this.instructions,
+    required this.defaultSets,
+    required this.defaultReps,
   });
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
@@ -20,6 +28,10 @@ class Exercise {
       muscleGroup: json['muscle_group'] as String? ?? '-',
       difficulty: json['difficulty'] as String? ?? '-',
       equipment: json['equipment'] as String? ?? '-',
+      description: json['description'] as String? ?? '',
+      instructions: json['instructions'] as String? ?? '',
+      defaultSets: json['default_sets'] as int? ?? 0,
+      defaultReps: json['default_reps'] as String? ?? '-',
     );
   }
 }

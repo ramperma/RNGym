@@ -33,9 +33,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _reload() async {
     setState(() {
-      _futureExercises = _api.fetchExercises();
+      _futureHomeData = _loadHomeData();
     });
-    await _futureExercises;
+    await _futureHomeData;
+  }
+
+  Future<void> _openExerciseCatalog() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ExerciseCatalogScreen()),
+    );
+    await _reload();
+  }
+
+  Future<void> _openHistory() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const WorkoutHistoryScreen()),
+    );
+    await _reload();
+  }
+
+  void _openProfileTab() {
+    setState(() => _selectedIndex = 1);
   }
 
   @override
@@ -398,6 +416,200 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           )).toList(),
         );
       },
+    );
+  }
+}
+
+class _MetricPill extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetricPill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactListItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CompactListItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+            foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+            child: Icon(icon, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 2),
+                Text(subtitle),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiCoachSummary extends StatelessWidget {
+  final AiStatus status;
+
+  const _AiCoachSummary({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final readyColor = status.enabled ? Colors.green : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.circle, size: 14, color: readyColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status.enabled
+                      ? 'Coach backend disponible'
+                      : 'Coach pendiente de configuración',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Proveedor: ${status.provider}. ${status.personalizationReady ? 'El perfil ya aporta contexto.' : 'Faltan más datos de perfil para personalizar mejor.'}',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComingSoonTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _ComingSoonTile({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.schedule),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(subtitle),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Chip(label: Text('Próximamente')),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeErrorState extends StatelessWidget {
+  final String error;
+  final Future<void> Function() onRetry;
+
+  const _HomeErrorState({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Icon(Icons.cloud_off, size: 40),
+                const SizedBox(height: 12),
+                const Text('No se pudo cargar la home.'),
+                const SizedBox(height: 8),
+                Text(error, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: onRetry,
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
