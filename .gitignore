@@ -29,7 +29,7 @@ admin_panel/.env
 # Flutter / Dart
 **/flutter_app/.dart_tool/
 **/flutter_app/.packages
-**/flutter_app/build/
+**/flutter_app/build/*
 !**/flutter_app/build/web/
 **/flutter_app/.flutter-plugins
 **/flutter_app/.flutter-plugins-dependencies

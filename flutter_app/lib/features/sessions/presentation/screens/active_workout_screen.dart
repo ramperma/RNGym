@@ -153,7 +153,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       (e) => e.name.toLowerCase().trim() == name.toLowerCase().trim(),
       orElse: () => _exerciseCatalog.isNotEmpty
           ? _exerciseCatalog.first
-          : const Exercise(id: '00000000-0000-0000-0000-000000000000', name: '', muscleGroup: '', difficulty: '', equipment: ''),
+          : const Exercise(
+              id: '00000000-0000-0000-0000-000000000000',
+              name: '',
+              muscleGroup: '',
+              difficulty: '',
+              equipment: '',
+              description: '',
+              instructions: '',
+              defaultSets: 0,
+              defaultReps: '',
+            ),
     );
     return match.id;
   }

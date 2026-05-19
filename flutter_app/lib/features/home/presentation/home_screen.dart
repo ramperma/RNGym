@@ -33,28 +33,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _reload() async {
     setState(() {
-      _futureHomeData = _loadHomeData();
+      _futureExercises = _api.fetchExercises();
     });
-    await _futureHomeData;
-  }
-
-  Future<void> _openHistory() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const WorkoutHistoryScreen()),
-    );
-    await _reload();
-  }
-
-  void _openAiTrainerTab() {
-    setState(() => _selectedIndex = 3);
-  }
-
-  void _openTrainingTab() {
-    setState(() => _selectedIndex = 1);
-  }
-
-  void _openProfileTab() {
-    setState(() => _selectedIndex = 2);
+    await _futureExercises;
+    await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: false);
   }
 
   @override
@@ -105,13 +87,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
               ],
             ),
