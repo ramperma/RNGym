@@ -36,15 +36,7 @@ pip install -r requirements.txt
 deactivate
 cd ..
 
-echo "5. Compilando Flutter Web..."
-cd flutter_app
-# Generar archivos de plataforma y dependencias
-flutter pub get
-# Compilar web indicando la URL base del API en producción
-flutter build web --dart-define=API_BASE_URL=https://rngym.duckdns.org:8443/api/v1
-cd ..
-
-echo "6. Reiniciando servicios de sistema..."
+echo "5. Reiniciando servicios de sistema..."
 sudo systemctl restart gym-backend
 sudo systemctl restart gym-admin
 
