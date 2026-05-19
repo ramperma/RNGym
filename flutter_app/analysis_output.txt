@@ -1,0 +1,23 @@
+Analyzing flutter_app...                                        
+
+warning • Unused import: 'dart:convert' • lib/core/network/api_client.dart:1:8 • unused_import
+warning • Unused import: 'package:flutter/material.dart' • lib/core/router/app_router.dart:2:8 • unused_import
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/core/theme/app_theme.dart:14:9 • deprecated_member_use
+  error • The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'.  • lib/core/theme/app_theme.dart:46:18 • argument_type_not_assignable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/theme/app_theme.dart:52:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/theme/app_theme.dart:81:44 • deprecated_member_use
+warning • The value of the field '_equiposDisponibles' isn't used • lib/features/ai/presentation/screens/ai_recommendation_screen.dart:17:22 • unused_field
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/features/ai/presentation/screens/ai_recommendation_screen.dart:40:25 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/features/ai/presentation/screens/ai_recommendation_screen.dart:72:25 • deprecated_member_use
+warning • Unused import: 'package:gym_trainer_app/shared/widgets/gym_card.dart' • lib/features/auth/presentation/screens/login_screen.dart:7:8 • unused_import
+  error • The getter 'black' isn't defined for the type 'FontWeight' • lib/features/auth/presentation/screens/login_screen.dart:82:48 • undefined_getter
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:144:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/home/presentation/home_screen.dart:132:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/home/presentation/home_screen.dart:214:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/home/presentation/home_screen.dart:272:53 • deprecated_member_use
+warning • The declaration 'margin' isn't referenced • lib/features/home/presentation/home_screen.dart:306:10 • unused_element
+warning • Unused import: 'package:dio/dio.dart' • lib/features/routines/presentation/providers/routines_provider.dart:1:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/routines/presentation/screens/routine_list_screen.dart:98:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/shared/widgets/gym_card.dart:36:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/shared/widgets/gym_card.dart:51:39 • deprecated_member_use
+

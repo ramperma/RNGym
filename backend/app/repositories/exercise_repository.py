@@ -6,9 +6,10 @@ from app.models.exercise import Exercise
 
 _EXERCISE_QUERY = text(
     """
-    SELECT id, name, muscle_group, difficulty, equipment
-    FROM exercises
-    ORDER BY created_at ASC, name ASC
+    SELECT id::text AS id, nombre AS name, grupo_muscular AS muscle_group,
+           dificultad AS difficulty, equipo_necesario AS equipment
+    FROM ejercicios
+    ORDER BY created_at ASC, nombre ASC
     """
 )
 

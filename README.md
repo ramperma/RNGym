@@ -15,12 +15,13 @@ Referencia breve: `docs/repository-strategy.md`.
 - FastAPI con estructura modular por `app/`
 - Variables de entorno con `.env.example`
 - PostgreSQL real mediante SQLAlchemy + psycopg
-- Endpoints:
+- **Migraciones con Alembic** (`alembic/`): schema completo versionado
+- Endpoints iniciales:
   - `GET /`
   - `GET /api/v1/health`
   - `GET /api/v1/exercises`
 - `docker-compose.yml` para levantar PostgreSQL local
-- `db/schema.sql` con tabla `exercises` y seed inicial
+- Modelos SQLAlchemy completos en `app/models/` (sin nutrición)
 
 ### Flutter (`flutter_app/`)
 - Skeleton de app con pantalla inicial más útil
@@ -33,7 +34,14 @@ Referencia breve: `docs/repository-strategy.md`.
 ```text
 backend/
   app/
-  db/schema.sql
+    api/
+    core/
+    db/
+    models/
+    repositories/
+  alembic/
+    versions/
+  db/schema.sql          # legacy, superseded by alembic/
   docker-compose.yml
 flutter_app/
 docs/
@@ -49,6 +57,7 @@ README.md
 cp backend/.env.example backend/.env
 make backend-install
 make backend-up
+make migrate-up           # aplicar migraciones (primera vez: crea todo el schema)
 make backend-run
 ```
 
@@ -56,6 +65,7 @@ Checks:
 
 ```bash
 make backend-check
+make migrate-status       # ver estado de migraciones
 ```
 
 ### Flutter
@@ -76,19 +86,20 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
 ## Qué funciona ya
-- Backend sirviendo ejercicios desde PostgreSQL real, no desde memoria.
+- Backend sirviendo ejercicios desde PostgreSQL real con schema completo (Alembic).
+- Migraciones versionadas: `make migrate-up` / `migrate-down`.
+- Schema completo sin nutrición: usuarios, perfiles_salud, rutinas, sesiones_entreno, registro_diario, logs_ia.
+- Seed de ejercicios con datos de ejemplo.
 - Healthcheck validando conexión a base de datos.
-- Seed inicial persistido en PostgreSQL.
 - Flutter preparado para consumir esos datos con una UI base más sólida.
 - Repo listo para publicarse como monorepo.
 
 ## Limitaciones reales ahora mismo
-- No hay auth ni usuarios todavía.
+- No hay auth ni usuarios todavía (gestión de usuarios será desde frontend PC admin).
 - No hay tests automáticos aún.
-- En este entorno no está instalado Flutter SDK, así que no pude ejecutar `flutter create` ni `flutter run` aquí.
-- En este entorno tampoco está instalado `gh`; para GitHub usaré API HTTP con el PAT disponible.
+- Docker no disponible en este entorno de build.
 
-## Siguiente paso recomendado
-1. Añadir detalle de ejercicio y modelo de rutina.
-2. Crear login mock o sesión mínima.
-3. Montar CI básica para backend y lint Flutter.
+## Siguiente paso recomendado (Fase 2)
+1. Auth completo: register/login/refresh/logout con JWT.
+2. Aislamiento de datos por usuario (RLS + contexto por request).
+3. Endpoints CRUD de perfil salud, rutinas y sesiones.

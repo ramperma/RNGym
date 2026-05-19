@@ -1,10 +1,41 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.health_profile import router as health_profile_router
+from app.api.v1.routines import router as routines_router
+from app.api.v1.sessions import router as sessions_router
+from app.api.v1.daily_records import router as daily_records_router
+from app.api.v1.ai import router as ai_router
+from app.api.v1.admin import router as admin_router
+from app.api.v1.me import router as me_router
+from app.api.routes import router as public_router
 from app.core.config import settings
+from app.db import engine
+from app.middleware.rlsmiddleware import RLSContextMiddleware
 
-app = FastAPI(title=settings.app_name, version="0.2.0")
-app.include_router(router)
+app = FastAPI(title=settings.app_name, version="0.6.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(RLSContextMiddleware)
+
+app.state.db_engine = engine
+
+app.include_router(public_router)
+app.include_router(auth_router)
+app.include_router(health_profile_router)
+app.include_router(routines_router)
+app.include_router(sessions_router)
+app.include_router(daily_records_router)
+app.include_router(ai_router)
+app.include_router(admin_router)
+app.include_router(me_router)
 
 
 @app.get("/")

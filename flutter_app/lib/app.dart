@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/home/presentation/home_screen.dart';
+import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
-class GymTrainerApp extends StatelessWidget {
+class GymTrainerApp extends ConsumerWidget {
   const GymTrainerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Gym Trainer App',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'Gym Trainer',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+      theme: AppTheme.darkTheme,
+      routerConfig: router,
     );
   }
 }
