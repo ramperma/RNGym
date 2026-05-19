@@ -1,0 +1,17 @@
+[Unit]
+Description=RNGym Backend (FastAPI)
+After=network.target postgresql.service
+
+[Service]
+User=ramon
+Group=ramon
+WorkingDirectory=/var/www/html/rngym/backend
+Environment="PATH=/var/www/html/rngym/backend/.venv/bin"
+EnvironmentFile=/var/www/html/rngym/backend/.env
+ExecStart=/var/www/html/rngym/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
