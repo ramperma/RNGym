@@ -94,24 +94,59 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
               itemBuilder: (context, index) {
                 final exercise = exercises[index];
                 return Card(
-                  child: ListTile(
+                  child: InkWell(
                     onTap: () => _openExercise(exercise),
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
-                      foregroundColor:
-                          Theme.of(context).colorScheme.onPrimaryContainer,
-                      child: Text(
-                        exercise.name.isNotEmpty
-                            ? exercise.name.substring(0, 1).toUpperCase()
-                            : '?',
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF0F2747), Color(0xFF1F5BA7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                exercise.name.isNotEmpty
+                                    ? exercise.name
+                                        .substring(0, 1)
+                                        .toUpperCase()
+                                    : '?',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(exercise.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium),
+                                const SizedBox(height: 5),
+                                Text(
+                                  '${exercise.muscleGroup} · ${exercise.difficulty} · ${exercise.equipment}',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
                       ),
                     ),
-                    title: Text(exercise.name),
-                    subtitle: Text(
-                      '${exercise.muscleGroup} · ${exercise.difficulty} · ${exercise.equipment}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
                   ),
                 );
               },

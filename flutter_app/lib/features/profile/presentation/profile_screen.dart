@@ -62,29 +62,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
+    setState(() { _loading = true; _error = null; });
     try {
-      final results = await Future.wait([
-        _api.fetchProfile(),
-        _api.fetchAiStatus(),
-      ]);
+      final results = await Future.wait([_api.fetchProfile(), _api.fetchAiStatus()]);
       final profile = results[0] as UserProfile;
       final aiStatus = results[1] as AiStatus;
       _applyProfile(profile);
-      setState(() {
-        _profile = profile;
-        _aiStatus = aiStatus;
-        _loading = false;
-      });
+      setState(() { _profile = profile; _aiStatus = aiStatus; _loading = false; });
     } catch (error) {
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
+      setState(() { _error = error.toString(); _loading = false; });
     }
   }
 
@@ -100,230 +86,168 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _aiPersonalizationEnabled = profile.aiPersonalizationEnabled;
   }
 
-  int? _parseInt(TextEditingController controller) {
-    final value = controller.text.trim();
-    if (value.isEmpty) return null;
-    return int.tryParse(value);
+  int? _parseInt(TextEditingController c) {
+    final v = c.text.trim();
+    if (v.isEmpty) return null;
+    return int.tryParse(v);
   }
 
-  double? _parseDouble(TextEditingController controller) {
-    final value = controller.text.trim().replaceAll(',', '.');
-    if (value.isEmpty) return null;
-    return double.tryParse(value);
+  double? _parseDouble(TextEditingController c) {
+    final v = c.text.trim().replaceAll(',', '.');
+    if (v.isEmpty) return null;
+    return double.tryParse(v);
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _saving = true; _error = null; });
     try {
-      final savedProfile = await _api.saveProfile(
-        UserProfileUpdate(
-          displayName: _nameController.text.trim(),
-          age: _parseInt(_ageController),
-          weightKg: _parseDouble(_weightController),
-          heightCm: _parseInt(_heightController),
-          sex: _selectedSex,
-          goal: _selectedGoal,
-          injuries: _injuriesController.text.trim(),
-          medicalNotes: _medicalNotesController.text.trim(),
-          aiPersonalizationEnabled: _aiPersonalizationEnabled,
-        ),
-      );
+      final saved = await _api.saveProfile(UserProfileUpdate(
+        displayName: _nameController.text.trim(),
+        age: _parseInt(_ageController),
+        weightKg: _parseDouble(_weightController),
+        heightCm: _parseInt(_heightController),
+        sex: _selectedSex,
+        goal: _selectedGoal,
+        injuries: _injuriesController.text.trim(),
+        medicalNotes: _medicalNotesController.text.trim(),
+        aiPersonalizationEnabled: _aiPersonalizationEnabled,
+      ));
       final aiStatus = await _api.fetchAiStatus();
-      _applyProfile(savedProfile);
-      setState(() {
-        _profile = savedProfile;
-        _aiStatus = aiStatus;
-        _saving = false;
-      });
+      _applyProfile(saved);
+      setState(() { _profile = saved; _aiStatus = aiStatus; _saving = false; });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Perfil guardado correctamente.')),
       );
     } catch (error) {
-      setState(() {
-        _error = error.toString();
-        _saving = false;
-      });
+      setState(() { _error = error.toString(); _saving = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null && _profile == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, size: 40),
-              const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: _load, child: const Text('Reintentar')),
-            ],
-          ),
-        ),
-      );
+      return _ErrorState(error: _error!, onRetry: _load);
     }
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 40),
         children: [
-          Text('Perfil y personalización',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          const Text(
-            'Estos datos preparan el terreno para ajustar rutinas y nutrición desde el backend, sin guardar claves de IA en el cliente.',
+          _SectionHeader(
+            icon: Icons.person,
+            title: 'Mi perfil',
+            subtitle: 'Datos que personalizan tus rutinas y recomendaciones de IA.',
           ),
-          const SizedBox(height: 16),
-          if (_aiStatus != null) _AiStatusCard(status: _aiStatus!),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          if (_aiStatus != null) ...[
+            _AiStatusCard(status: _aiStatus!),
+            const SizedBox(height: 14),
+          ],
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _FormSectionTitle('Información básica'),
+                    const SizedBox(height: 14),
                     TextFormField(
                       controller: _nameController,
-                      decoration:
-                          const InputDecoration(labelText: 'Nombre visible'),
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre visible',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _ageController,
-                            decoration:
-                                const InputDecoration(labelText: 'Edad'),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return null;
-                              }
-                              final parsed = int.tryParse(value.trim());
-                              if (parsed == null ||
-                                  parsed < 13 ||
-                                  parsed > 100) {
-                                return '13-100';
-                              }
-                              return null;
-                            },
+                    Row(children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _ageController,
+                          decoration: const InputDecoration(
+                            labelText: 'Edad',
+                            prefixIcon: Icon(Icons.cake_outlined),
                           ),
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = int.tryParse(v.trim());
+                            if (n == null || n < 13 || n > 100) return '13-100';
+                            return null;
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _weightController,
-                            decoration:
-                                const InputDecoration(labelText: 'Peso (kg)'),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return null;
-                              }
-                              final parsed = double.tryParse(
-                                  value.trim().replaceAll(',', '.'));
-                              if (parsed == null ||
-                                  parsed <= 0 ||
-                                  parsed > 400) {
-                                return 'Peso inválido';
-                              }
-                              return null;
-                            },
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String?>(
+                          initialValue: _selectedSex,
+                          decoration: const InputDecoration(labelText: 'Sexo'),
+                          items: [
+                            const DropdownMenuItem<String?>(value: null, child: Text('No indicado')),
+                            ..._sexOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value))),
+                          ],
+                          onChanged: (v) => setState(() => _selectedSex = v),
                         ),
-                      ],
-                    ),
+                      ),
+                    ]),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _heightController,
-                            decoration:
-                                const InputDecoration(labelText: 'Altura (cm)'),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return null;
-                              }
-                              final parsed = int.tryParse(value.trim());
-                              if (parsed == null ||
-                                  parsed < 100 ||
-                                  parsed > 250) {
-                                return '100-250';
-                              }
-                              return null;
-                            },
+                    Row(children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _weightController,
+                          decoration: const InputDecoration(
+                            labelText: 'Peso (kg)',
+                            prefixIcon: Icon(Icons.monitor_weight_outlined),
                           ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = double.tryParse(v.trim().replaceAll(',', '.'));
+                            if (n == null || n <= 0 || n > 400) return 'Inválido';
+                            return null;
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String?>(
-                            initialValue: _selectedSex,
-                            decoration:
-                                const InputDecoration(labelText: 'Sexo'),
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('No indicado'),
-                              ),
-                              ..._sexOptions.entries.map(
-                                (entry) => DropdownMenuItem<String?>(
-                                  value: entry.key,
-                                  child: Text(entry.value),
-                                ),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() => _selectedSex = value);
-                            },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _heightController,
+                          decoration: const InputDecoration(
+                            labelText: 'Altura (cm)',
+                            prefixIcon: Icon(Icons.height_outlined),
                           ),
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = int.tryParse(v.trim());
+                            if (n == null || n < 100 || n > 250) return '100-250';
+                            return null;
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    _FormSectionTitle('Objetivo'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
                       initialValue: _selectedGoal,
                       decoration: const InputDecoration(
-                          labelText: 'Objetivo principal'),
+                        labelText: 'Objetivo principal',
+                        prefixIcon: Icon(Icons.flag_outlined),
+                      ),
                       items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Sin definir todavía'),
-                        ),
-                        ..._goalOptions.entries.map(
-                          (entry) => DropdownMenuItem<String?>(
-                            value: entry.key,
-                            child: Text(entry.value),
-                          ),
-                        ),
+                        const DropdownMenuItem<String?>(value: null, child: Text('Sin definir todavía')),
+                        ..._goalOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value))),
                       ],
-                      onChanged: (value) {
-                        setState(() => _selectedGoal = value);
-                      },
+                      onChanged: (v) => setState(() => _selectedGoal = v),
                     ),
+                    const SizedBox(height: 20),
+                    _FormSectionTitle('Salud'),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _injuriesController,
@@ -331,7 +255,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       maxLines: 4,
                       decoration: const InputDecoration(
                         labelText: 'Lesiones o problemas articulares',
-                        hintText: 'Ej: hombro derecho, rodilla, lumbar...',
+                        hintText: 'Ej: hombro derecho, rodilla, lumbar…',
+                        prefixIcon: Icon(Icons.healing_outlined),
+                        alignLabelWithHint: true,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -340,54 +266,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       minLines: 3,
                       maxLines: 5,
                       decoration: const InputDecoration(
-                        labelText: 'Enfermedades, medicación u observaciones',
+                        labelText: 'Medicación u observaciones',
+                        prefixIcon: Icon(Icons.medical_information_outlined),
+                        alignLabelWithHint: true,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    SwitchListTile(
-                      value: _aiPersonalizationEnabled,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Permitir personalización con IA'),
-                      subtitle: const Text(
-                        'El backend podrá usar este perfil para adaptar recomendaciones cuando el proveedor esté disponible.',
-                      ),
-                      onChanged: (value) {
-                        setState(() => _aiPersonalizationEnabled = value);
-                      },
-                    ),
-                    if (_profile != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Última actualización: ${_profile!.updatedAt.day.toString().padLeft(2, '0')}/${_profile!.updatedAt.month.toString().padLeft(2, '0')} ${_profile!.updatedAt.hour.toString().padLeft(2, '0')}:${_profile!.updatedAt.minute.toString().padLeft(2, '0')}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
                     const SizedBox(height: 16),
+                    _AiToggleTile(
+                      value: _aiPersonalizationEnabled,
+                      onChanged: (v) => setState(() => _aiPersonalizationEnabled = v),
+                    ),
+                    if (_profile != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Actualizado: ${_fmt(_profile!.updatedAt)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13)),
+                    ],
+                    const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
+                      child: FilledButton.icon(
                         onPressed: _saving ? null : _save,
                         icon: _saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.save),
-                        label:
-                            Text(_saving ? 'Guardando...' : 'Guardar perfil'),
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.save_outlined),
+                        label: Text(_saving ? 'Guardando…' : 'Guardar perfil'),
                       ),
                     ),
                   ],
@@ -399,45 +307,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  String _fmt(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} '
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+}
+
+// ── Componentes privados ────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _SectionHeader({required this.icon, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF0F2747), Color(0xFF1E4F8A)]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 3),
+            Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        )),
+      ],
+    );
+  }
+}
+
+class _FormSectionTitle extends StatelessWidget {
+  final String text;
+  const _FormSectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.9, color: const Color(0xFF7A8FA6)),
+    );
+  }
+}
+
+class _AiToggleTile extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _AiToggleTile({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FE),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE6F0)),
+      ),
+      child: SwitchListTile(
+        value: value,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        title: Text('Personalización con IA', style: Theme.of(context).textTheme.titleSmall),
+        subtitle: Text(
+          'El backend adaptará recomendaciones con tu perfil cuando haya proveedor IA activo.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
 }
 
 class _AiStatusCard extends StatelessWidget {
   final AiStatus status;
-
   const _AiStatusCard({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    final color = status.enabled ? Colors.green : Colors.orange;
-    return Card(
+    final ready = status.enabled;
+    final accent = ready ? const Color(0xFF0D7A5F) : const Color(0xFFB45309);
+    final bg = ready ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB);
+    final border = ready ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.smart_toy_outlined, color: accent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(ready ? 'IA conectada' : 'IA pendiente de configurar',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: accent)),
+              const SizedBox(height: 3),
+              Text('Proveedor: ${status.provider}', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 2),
+              Text(
+                status.personalizationReady
+                    ? 'Perfil con datos suficientes para personalizar.'
+                    : 'Completa el perfil para mejorar las recomendaciones.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(28),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(Icons.smart_toy, color: color),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Estado IA: ${status.enabled ? 'conectada' : 'pendiente de configurar'}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text('Proveedor backend: ${status.provider}'),
-            Text(
-              status.personalizationReady
-                  ? 'El perfil ya tiene datos útiles para personalización.'
-                  : 'Faltan más datos de perfil para personalizar mejor.',
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Las credenciales sensibles se quedan en backend. La app solo consulta el estado y envía datos de perfil.',
-            ),
+            const Icon(Icons.cloud_off, size: 44, color: Color(0xFF7A8FA6)),
+            const SizedBox(height: 14),
+            Text(error, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 18),
+            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Reintentar')),
           ],
         ),
       ),

@@ -38,13 +38,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await _futureHomeData;
   }
 
-  Future<void> _openExerciseCatalog() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ExerciseCatalogScreen()),
-    );
-    await _reload();
-  }
-
   Future<void> _openHistory() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const WorkoutHistoryScreen()),
@@ -52,8 +45,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await _reload();
   }
 
-  void _openProfileTab() {
+  void _openAiTrainerTab() {
+    setState(() => _selectedIndex = 3);
+  }
+
+  void _openTrainingTab() {
     setState(() => _selectedIndex = 1);
+  }
+
+  void _openProfileTab() {
+    setState(() => _selectedIndex = 2);
   }
 
   @override
@@ -104,6 +105,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -144,6 +152,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   fontSize: 10,
                   color: Colors.white.withOpacity(0.55),
                 ),
+              ),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F5FB),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.chevron_right),
               ),
             ],
           ),
@@ -416,165 +433,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           )).toList(),
         );
       },
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _MetricPill({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactListItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _CompactListItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-            foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
-            child: Icon(icon, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(subtitle),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AiCoachSummary extends StatelessWidget {
-  final AiStatus status;
-
-  const _AiCoachSummary({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final readyColor = status.enabled ? Colors.green : Colors.orange;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.circle, size: 14, color: readyColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  status.enabled
-                      ? 'Coach backend disponible'
-                      : 'Coach pendiente de configuración',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Proveedor: ${status.provider}. ${status.personalizationReady ? 'El perfil ya aporta contexto.' : 'Faltan más datos de perfil para personalizar mejor.'}',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComingSoonTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _ComingSoonTile({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.schedule),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(subtitle),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Chip(label: Text('Próximamente')),
-        ],
-      ),
     );
   }
 }

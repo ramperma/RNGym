@@ -119,31 +119,42 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(exercise.name,
-                          style: Theme.of(context).textTheme.headlineSmall),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _InfoChip(
-                              label: 'Grupo', value: exercise.muscleGroup),
-                          _InfoChip(label: 'Nivel', value: exercise.difficulty),
-                          _InfoChip(label: 'Equipo', value: exercise.equipment),
-                          _InfoChip(
-                              label: 'Series',
-                              value: exercise.defaultSets.toString()),
-                          _InfoChip(label: 'Reps', value: exercise.defaultReps),
-                        ],
-                      ),
-                    ],
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F2747), Color(0xFF1E4F8A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _InfoChip(label: 'Grupo', value: exercise.muscleGroup),
+                        _InfoChip(label: 'Nivel', value: exercise.difficulty),
+                        _InfoChip(label: 'Equipo', value: exercise.equipment),
+                        _InfoChip(
+                          label: 'Series',
+                          value: exercise.defaultSets.toString(),
+                        ),
+                        _InfoChip(label: 'Reps', value: exercise.defaultReps),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -209,6 +220,19 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Chip(label: Text('$label: $value'));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$label: $value',
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: Colors.white),
+      ),
+    );
   }
 }

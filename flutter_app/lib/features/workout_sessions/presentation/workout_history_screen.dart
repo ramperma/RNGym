@@ -90,15 +90,55 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
               itemBuilder: (context, index) {
                 final session = sessions[index];
                 return Card(
-                  child: ListTile(
+                  child: InkWell(
                     onTap: () => _openSessionExercise(session),
-                    leading: const CircleAvatar(child: Icon(Icons.history)),
-                    title: Text(session.exerciseName),
-                    subtitle: Text(
-                      '${session.setsCompleted} series · ${session.repsCompleted} reps\n${session.notes.isEmpty ? 'Sin notas' : session.notes}',
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F2FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.history),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  session.exerciseName,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${session.setsCompleted} series · ${session.repsCompleted} reps',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  session.notes.isEmpty
+                                      ? 'Sin notas'
+                                      : session.notes,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(_formatDate(session.performedAt)),
+                        ],
+                      ),
                     ),
-                    isThreeLine: true,
-                    trailing: Text(_formatDate(session.performedAt)),
                   ),
                 );
               },
