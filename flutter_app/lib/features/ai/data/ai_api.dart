@@ -120,4 +120,29 @@ class AIApi {
     final response = await _client.post('/ai/plans/$planId/activate');
     return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<String> exerciseHelp({
+    required String nombreEjercicio,
+    String? grupoMuscular,
+    String? machineNombre,
+    String? notasPlan,
+    String? pregunta,
+    File? foto,
+  }) async {
+    final formData = FormData.fromMap({
+      'nombre_ejercicio': nombreEjercicio,
+      if (grupoMuscular != null) 'grupo_muscular': grupoMuscular,
+      if (machineNombre != null) 'machine_nombre': machineNombre,
+      if (notasPlan != null) 'notas_plan': notasPlan,
+      if (pregunta != null) 'pregunta': pregunta,
+      if (foto != null)
+        'file': await MultipartFile.fromFile(
+          foto.path,
+          filename: foto.path.split('/').last,
+        ),
+    });
+    final response = await _client.uploadFile('/ai/exercise-help', formData);
+    final data = response.data as Map<String, dynamic>;
+    return data['respuesta'] as String;
+  }
 }

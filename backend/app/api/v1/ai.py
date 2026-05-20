@@ -1,3 +1,4 @@
+import base64
 import json
 import uuid
 from pathlib import Path
@@ -13,6 +14,7 @@ from app.schemas.ai import (
     AIConsultaRequest,
     AIMachineProposeRequest,
     AIMachineProposeResponse,
+    AIExerciseHelpResponse,
 )
 from app.schemas.plan_semanal import (
     AIWeeklyPlanRequest,
@@ -1222,6 +1224,141 @@ async def activate_plan_endpoint(
         # Refetch the plan to get the updated status
         updated_plan = get_plan_by_id(conn, plan_id, current_user["id"])
     return PlanSemanalResponse.model_validate(updated_plan)
+
+
+def _build_exercise_help_messages(
+    nombre_ejercicio: str,
+    grupo_muscular: str | None,
+    machine_nombre: str | None,
+    notas_plan: str | None,
+    pregunta: str | None,
+    image_b64: str | None,
+    image_media_type: str,
+    provider: str,
+) -> list[dict]:
+    system_msg = (
+        "Eres un entrenador personal experto con profundo conocimiento en biomecánica, "
+        "técnica deportiva y entrenamiento de fuerza. Responde de forma clara, práctica "
+        "y motivadora en español."
+    )
+
+    context_lines = [f"Ejercicio: **{nombre_ejercicio}**"]
+    if grupo_muscular:
+        context_lines.append(f"Grupo muscular: {grupo_muscular}")
+    if machine_nombre:
+        context_lines.append(f"Máquina/Equipo: {machine_nombre}")
+    if notas_plan:
+        context_lines.append(f"Notas del plan: {notas_plan}")
+    context = "\n".join(context_lines)
+
+    if image_b64 and pregunta:
+        text = (
+            f"{context}\n\n"
+            f"El usuario ha enviado una fotografía y pregunta: \"{pregunta}\"\n\n"
+            "Analiza la imagen y evalúa si la posición o técnica mostrada es correcta para "
+            "este ejercicio. Sé específico sobre qué está bien y qué debe corregir."
+        )
+    elif image_b64:
+        text = (
+            f"{context}\n\n"
+            "El usuario ha enviado una fotografía de su posición o de la máquina. "
+            "Analiza si la posición o técnica mostrada en la imagen es correcta para este ejercicio. "
+            "Indica con detalle qué está bien ejecutado y qué debe corregir."
+        )
+    elif pregunta:
+        text = f"{context}\n\nPregunta del usuario: \"{pregunta}\"\n\nResponde de forma clara y técnica."
+    else:
+        text = (
+            f"{context}\n\n"
+            "Dame una explicación detallada y práctica de cómo realizar este ejercicio correctamente:\n"
+            "1. Posición inicial y configuración del equipo\n"
+            "2. Técnica de ejecución paso a paso\n"
+            "3. Músculos principales y secundarios trabajados\n"
+            "4. Errores comunes y cómo evitarlos\n"
+            "5. Respiración adecuada durante el movimiento\n"
+            "6. Consejos para progresar con seguridad"
+        )
+
+    supports_vision = provider in ("openai", "gemini")
+
+    if image_b64 and supports_vision:
+        user_content: list | str = [
+            {"type": "text", "text": text},
+            {"type": "image_url", "image_url": {"url": f"data:{image_media_type};base64,{image_b64}"}},
+        ]
+    else:
+        if image_b64 and not supports_vision:
+            text += "\n\n(Nota: el análisis de imágenes no está disponible con tu proveedor de IA actual.)"
+        user_content = text
+
+    return [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_content},
+    ]
+
+
+@router.post("/exercise-help", response_model=AIExerciseHelpResponse)
+async def exercise_help(
+    nombre_ejercicio: str = Form(...),
+    grupo_muscular: str | None = Form(None),
+    machine_nombre: str | None = Form(None),
+    notas_plan: str | None = Form(None),
+    pregunta: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    current_user: dict = Depends(get_current_user),
+) -> AIExerciseHelpResponse:
+    mode, provider, model, user_key = _resolve_ai_settings(current_user)
+
+    allowed, retry_after = check_rate_limit(current_user["id"], mode)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMIT_EXCEEDED", "message": f"Límite de llamadas superado. Retry-After: {retry_after}s"},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    image_b64: str | None = None
+    image_media_type = "image/jpeg"
+    if file:
+        if file.size and file.size > 10 * 1024 * 1024:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Imagen demasiado grande (máx 10MB)")
+        content = await file.read()
+        image_b64 = base64.b64encode(content).decode()
+        image_media_type = file.content_type or "image/jpeg"
+
+    messages = _build_exercise_help_messages(
+        nombre_ejercicio=nombre_ejercicio,
+        grupo_muscular=grupo_muscular,
+        machine_nombre=machine_nombre,
+        notas_plan=notas_plan,
+        pregunta=pregunta,
+        image_b64=image_b64,
+        image_media_type=image_media_type,
+        provider=provider,
+    )
+
+    try:
+        response = await ai_client.chat(
+            provider=provider,
+            model=model,
+            messages=messages,
+            mode=mode,
+            user_api_key=user_key,
+            user_id=current_user["id"],
+            tipo_consulta="exercise_help",
+            max_tokens=1024,
+            temperature=0.7,
+        )
+        text = ai_client._extract_text_response(response, provider) or "No se pudo obtener respuesta."
+        return AIExerciseHelpResponse(
+            ok=True,
+            respuesta=text,
+            proveedor=provider,
+            modelo=ai_client._resolve_model(provider, model),
+            modo=mode,
+        )
+    except AIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"code": e.code, "message": e.message})
 
 
 def _build_machine_propose_prompt(descripcion_uso: str) -> list[dict[str, str]]:

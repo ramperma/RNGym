@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../exercises/data/exercise_api.dart';
 import '../../../exercises/domain/exercise.dart';
+import '../../../ai/data/ai_api.dart';
 import '../../../ai/presentation/providers/ai_provider.dart';
 import '../../../weekly_plan/domain/plan_semanal.dart';
 import '../providers/sessions_provider.dart';
@@ -614,6 +618,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
+  void _showExerciseAIHelp(PlanDiaEjercicio ex) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ExerciseAIHelpSheet(
+        ejercicio: ex,
+        aiApi: ref.read(aiApiProvider),
+      ),
+    );
+  }
+
   Widget _buildExerciseExecutionCard(PlanDiaEjercicio ex) {
     final records = _workoutRecords[ex.nombreEjercicio] ?? [];
 
@@ -629,7 +645,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         children: [
           // Header of Exercise
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -662,6 +678,20 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                         ),
                       ],
                     ],
+                  ),
+                ),
+                // AI help button
+                GestureDetector(
+                  onTap: () => _showExerciseAIHelp(ex),
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 6, right: 6),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B00).withOpacity(0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.35)),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 15),
                   ),
                 ),
                 Container(
@@ -850,6 +880,400 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             },
           ),
           const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── AI Help bottom sheet ────────────────────────────────────────────────────
+
+class _ChatMessage {
+  final String role; // 'user' | 'ai'
+  final String text;
+  final File? image;
+  const _ChatMessage({required this.role, required this.text, this.image});
+}
+
+class _ExerciseAIHelpSheet extends StatefulWidget {
+  final PlanDiaEjercicio ejercicio;
+  final AIApi aiApi;
+
+  const _ExerciseAIHelpSheet({required this.ejercicio, required this.aiApi});
+
+  @override
+  State<_ExerciseAIHelpSheet> createState() => _ExerciseAIHelpSheetState();
+}
+
+class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
+  final _textCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final List<_ChatMessage> _messages = [];
+  File? _selectedImage;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExplanation();
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchExplanation() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await widget.aiApi.exerciseHelp(
+        nombreEjercicio: widget.ejercicio.nombreEjercicio,
+        grupoMuscular: widget.ejercicio.grupoMuscular,
+        machineNombre: widget.ejercicio.machineNombre,
+        notasPlan: widget.ejercicio.notas,
+      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(role: 'ai', text: response));
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(role: 'ai', text: 'No se pudo cargar la explicación. Intenta de nuevo.'));
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final question = _textCtrl.text.trim();
+    final image = _selectedImage;
+    if (question.isEmpty && image == null) return;
+
+    setState(() {
+      _messages.add(_ChatMessage(
+        role: 'user',
+        text: question.isEmpty ? '📷 Foto adjunta' : question,
+        image: image,
+      ));
+      _textCtrl.clear();
+      _selectedImage = null;
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final response = await widget.aiApi.exerciseHelp(
+        nombreEjercicio: widget.ejercicio.nombreEjercicio,
+        grupoMuscular: widget.ejercicio.grupoMuscular,
+        machineNombre: widget.ejercicio.machineNombre,
+        notasPlan: widget.ejercicio.notas,
+        pregunta: question.isEmpty ? null : question,
+        foto: image,
+      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(role: 'ai', text: response));
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(role: 'ai', text: 'Error: $e'));
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 70, maxWidth: 1280);
+    if (picked != null && mounted) {
+      setState(() => _selectedImage = File(picked.path));
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C24),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFFFF6B00)),
+              title: const Text('Tomar foto', style: TextStyle(color: Colors.white)),
+              onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: Color(0xFFFF6B00)),
+              title: const Text('Elegir de galería', style: TextStyle(color: Colors.white)),
+              onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.87,
+      decoration: const BoxDecoration(
+        color: Color(0xFF15151B),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B00).withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Asistente IA', style: TextStyle(fontSize: 10, color: Color(0xFFFF6B00), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      Text(
+                        widget.ejercicio.nombreEjercicio,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+
+          // Messages area
+          Expanded(
+            child: _messages.isEmpty && _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: Color(0xFFFF6B00)),
+                        SizedBox(height: 14),
+                        Text('Analizando el ejercicio...', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    itemCount: _messages.length + (_isLoading ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (i == _messages.length) {
+                        return const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF6B00))),
+                          ),
+                        );
+                      }
+                      return _buildBubble(_messages[i]);
+                    },
+                  ),
+          ),
+
+          // Image preview strip
+          if (_selectedImage != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: const Color(0xFF0F0F12),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(_selectedImage!, width: 52, height: 52, fit: BoxFit.cover),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Foto adjunta', style: TextStyle(color: Colors.white60, fontSize: 13))),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+                    onPressed: () => setState(() => _selectedImage = null),
+                  ),
+                ],
+              ),
+            ),
+
+          // Input bar
+          Container(
+            padding: EdgeInsets.fromLTRB(10, 8, 10, MediaQuery.of(context).viewInsets.bottom + 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0F0F12),
+              border: Border(top: BorderSide(color: Colors.white10)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.add_photo_alternate_rounded,
+                      color: _selectedImage != null ? const Color(0xFFFF6B00) : Colors.white38,
+                      size: 24,
+                    ),
+                    onPressed: _isLoading ? null : _showImageSourceSheet,
+                    tooltip: 'Adjuntar foto',
+                  ),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF15151B),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: TextField(
+                        controller: _textCtrl,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        maxLines: 4,
+                        minLines: 1,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          hintText: 'Pregunta sobre el ejercicio...',
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.28), fontSize: 13),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _isLoading ? null : _sendMessage,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _isLoading ? Colors.white10 : const Color(0xFFFF6B00),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.send_rounded,
+                        color: _isLoading ? Colors.white24 : Colors.black,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(_ChatMessage msg) {
+    final isAI = msg.role == 'ai';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: isAI ? MainAxisAlignment.start : MainAxisAlignment.end,
+        children: [
+          if (isAI)
+            Container(
+              width: 26,
+              height: 26,
+              margin: const EdgeInsets.only(right: 8, top: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B00).withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 13),
+            ),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isAI ? const Color(0xFF1E1E28) : const Color(0xFFFF6B00).withOpacity(0.13),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: isAI ? Radius.zero : const Radius.circular(16),
+                  bottomRight: isAI ? const Radius.circular(16) : Radius.zero,
+                ),
+                border: Border.all(
+                  color: isAI ? Colors.white10 : const Color(0xFFFF6B00).withOpacity(0.25),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (msg.image != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.file(msg.image!, width: 200, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Text(
+                    msg.text,
+                    style: TextStyle(
+                      color: isAI ? Colors.white : const Color(0xFFFFD0A0),
+                      fontSize: 13,
+                      height: 1.55,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!isAI) const SizedBox(width: 8),
         ],
       ),
     );

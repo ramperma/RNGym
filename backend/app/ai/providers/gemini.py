@@ -27,9 +27,23 @@ class GeminiProvider(AIProvider):
             if m.get("role") == "system":
                 system_instruction = {"parts": [{"text": m.get("content", "")}]}
                 continue
+            content = m.get("content", "")
+            if isinstance(content, list):
+                parts = []
+                for part in content:
+                    if part.get("type") == "text":
+                        parts.append({"text": part["text"]})
+                    elif part.get("type") == "image_url":
+                        url = part["image_url"]["url"]
+                        if url.startswith("data:"):
+                            header, b64data = url.split(",", 1)
+                            mime_type = header.split(";")[0].split(":")[1]
+                            parts.append({"inline_data": {"mime_type": mime_type, "data": b64data}})
+            else:
+                parts = [{"text": str(content)}]
             contents.append({
                 "role": "user" if m.get("role") == "user" else "model",
-                "parts": [{"text": m.get("content", "")}],
+                "parts": parts,
             })
 
         body: dict[str, Any] = {

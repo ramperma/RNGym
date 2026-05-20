@@ -59,3 +59,11 @@ class AIMachineProposeResponse(BaseModel):
     proveedor: str
     modelo: str
     modo: str
+
+
+class AIExerciseHelpResponse(BaseModel):
+    ok: bool = True
+    respuesta: str
+    proveedor: str
+    modelo: str
+    modo: str
