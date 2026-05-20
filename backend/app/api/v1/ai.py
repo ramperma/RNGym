@@ -1235,6 +1235,7 @@ def _build_exercise_help_messages(
     image_b64: str | None,
     image_media_type: str,
     provider: str,
+    lesiones: list[str] | None = None,
 ) -> list[dict]:
     system_msg = (
         "Eres un entrenador personal experto con profundo conocimiento en biomecánica, "
@@ -1251,32 +1252,50 @@ def _build_exercise_help_messages(
         context_lines.append(f"Notas del plan: {notas_plan}")
     context = "\n".join(context_lines)
 
+    lesiones_block = ""
+    if lesiones:
+        lesiones_str = ", ".join(lesiones)
+        lesiones_block = (
+            f"\n\n⚠️ LIMITACIONES FÍSICAS DEL USUARIO (OBLIGATORIO tenerlas en cuenta): {lesiones_str}\n"
+            "Adapta TODA la explicación a estas limitaciones. Para cada una que sea relevante indica "
+            "explícitamente cómo modificar el ejercicio: ángulos articulares, apertura o cierre de piernas, "
+            "altura de los pies, rango de movimiento seguro, músculos estabilizadores a activar, qué evitar "
+            "y por qué. Si la limitación no afecta a este ejercicio, indícalo brevemente."
+        )
+
     if image_b64 and pregunta:
         text = (
-            f"{context}\n\n"
+            f"{context}{lesiones_block}\n\n"
             f"El usuario ha enviado una fotografía y pregunta: \"{pregunta}\"\n\n"
             "Analiza la imagen y evalúa si la posición o técnica mostrada es correcta para "
-            "este ejercicio. Sé específico sobre qué está bien y qué debe corregir."
+            "este ejercicio, teniendo en cuenta sus limitaciones físicas. Sé específico sobre "
+            "qué está bien y qué debe corregir para proteger sus zonas afectadas."
         )
     elif image_b64:
         text = (
-            f"{context}\n\n"
+            f"{context}{lesiones_block}\n\n"
             "El usuario ha enviado una fotografía de su posición o de la máquina. "
-            "Analiza si la posición o técnica mostrada en la imagen es correcta para este ejercicio. "
-            "Indica con detalle qué está bien ejecutado y qué debe corregir."
+            "Analiza si la posición o técnica mostrada es correcta para este ejercicio "
+            "considerando sus limitaciones físicas. Indica qué está bien y qué debe corregir."
         )
     elif pregunta:
-        text = f"{context}\n\nPregunta del usuario: \"{pregunta}\"\n\nResponde de forma clara y técnica."
+        text = (
+            f"{context}{lesiones_block}\n\n"
+            f"Pregunta del usuario: \"{pregunta}\"\n\n"
+            "Responde de forma clara y técnica, adaptando la respuesta a sus limitaciones físicas."
+        )
     else:
         text = (
-            f"{context}\n\n"
-            "Dame una explicación detallada y práctica de cómo realizar este ejercicio correctamente:\n"
-            "1. Posición inicial y configuración del equipo\n"
+            f"{context}{lesiones_block}\n\n"
+            "Dame una explicación detallada y práctica de cómo realizar este ejercicio correctamente "
+            "adaptada a las limitaciones físicas indicadas:\n"
+            "1. Posición inicial y configuración del equipo (con ajustes por limitaciones si aplica)\n"
             "2. Técnica de ejecución paso a paso\n"
             "3. Músculos principales y secundarios trabajados\n"
-            "4. Errores comunes y cómo evitarlos\n"
-            "5. Respiración adecuada durante el movimiento\n"
-            "6. Consejos para progresar con seguridad"
+            "4. Adaptaciones específicas por cada limitación física relevante\n"
+            "5. Errores comunes a evitar (especialmente los que pueden agravar las lesiones)\n"
+            "6. Respiración adecuada durante el movimiento\n"
+            "7. Consejos para progresar con seguridad respetando las limitaciones"
         )
 
     supports_vision = provider in ("openai", "gemini")
@@ -1326,6 +1345,21 @@ async def exercise_help(
         image_b64 = base64.b64encode(content).decode()
         image_media_type = file.content_type or "image/jpeg"
 
+    # Gather user's physical limitations from active plan + health profile
+    from app.repositories import get_perfil_by_usuario, list_planes_semanales
+    from app.db import db_connection_context
+
+    lesiones: list[str] = []
+    with db_connection_context() as conn:
+        planes = list_planes_semanales(conn, current_user["id"], skip=0, limit=1, solo_activos=True)
+        if planes and planes[0].lesiones_o_limitaciones:
+            lesiones.extend(planes[0].lesiones_o_limitaciones)
+        perfil = get_perfil_by_usuario(conn, current_user["id"])
+        if perfil and perfil.lesiones:
+            for l in perfil.lesiones:
+                if l not in lesiones:
+                    lesiones.append(l)
+
     messages = _build_exercise_help_messages(
         nombre_ejercicio=nombre_ejercicio,
         grupo_muscular=grupo_muscular,
@@ -1335,6 +1369,7 @@ async def exercise_help(
         image_b64=image_b64,
         image_media_type=image_media_type,
         provider=provider,
+        lesiones=lesiones if lesiones else None,
     )
 
     try:
