@@ -1,4 +1,4 @@
-from app.repositories.exercise_repository import list_exercises
+from app.repositories.exercise_repository import list_exercises, get_exercise
 from app.repositories.user_repository import (
     create_user,
     email_exists,
@@ -30,7 +30,18 @@ from app.repositories.registro_diario_repository import (
     list_registros,
     upsert_registro_diario,
 )
-from app.repositories.admin_repository import create_admin_user, get_stats, list_all_users, update_admin_user
+from app.repositories.admin_repository import (
+    create_admin_user_legacy as create_admin_user,
+    get_stats,
+    list_all_users,
+    update_admin_user,
+    get_admin_ai_settings,
+    upsert_admin_ai_settings,
+    list_admin_users,
+    get_admin_user,
+    update_admin_user_token_limit,
+    update_admin_user_status,
+)
 from app.repositories.maquina_gym_repository import (
     create_maquina,
     delete_maquina,
@@ -46,9 +57,20 @@ from app.repositories.plan_semanal_repository import (
     list_planes_semanales,
     update_plan_semanal,
 )
+from app.repositories.user_profile_repository import (
+    build_ai_status,
+    get_user_profile,
+    upsert_user_profile,
+)
+from app.repositories.workout_session_repository import (
+    create_workout_session,
+    get_workout_session,
+    list_workout_sessions,
+)
 
 __all__ = [
     "list_exercises",
+    "get_exercise",
     "create_user",
     "email_exists",
     "get_user_by_email",
@@ -89,4 +111,16 @@ __all__ = [
     "get_plan_by_id",
     "list_planes_semanales",
     "update_plan_semanal",
+    "build_ai_status",
+    "get_user_profile",
+    "upsert_user_profile",
+    "create_workout_session",
+    "get_workout_session",
+    "list_workout_sessions",
+    "get_admin_ai_settings",
+    "upsert_admin_ai_settings",
+    "list_admin_users",
+    "get_admin_user",
+    "update_admin_user_token_limit",
+    "update_admin_user_status",
 ]

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,7 +18,15 @@ from app.middleware.rlsmiddleware import RLSContextMiddleware
 
 app = FastAPI(title=settings.app_name, version="0.6.0")
 
+
+@app.on_event("startup")
+def on_startup():
+    from app.db.bootstrap import ensure_schema_compatibility
+    ensure_schema_compatibility(engine)
+
+
 app.add_middleware(
+
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
