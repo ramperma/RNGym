@@ -2,12 +2,17 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 import '../domain/exercise.dart';
 
 class ExerciseApi {
+  /// Returns the active base URL: the one the user configured at runtime,
+  /// or the compile-time default if none has been set yet.
+  String get _base => AppConfig.baseUrl ?? Env.apiBaseUrl;
+
   Future<List<Exercise>> fetchExercises() async {
-    final uri = Uri.parse('${Env.apiBaseUrl}/exercises');
+    final uri = Uri.parse('$_base/exercises');
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {
@@ -24,7 +29,7 @@ class ExerciseApi {
   }
 
   Future<Exercise> fetchExerciseDetail(String exerciseId) async {
-    final uri = Uri.parse('${Env.apiBaseUrl}/exercises/$exerciseId');
+    final uri = Uri.parse('$_base/exercises/$exerciseId');
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {

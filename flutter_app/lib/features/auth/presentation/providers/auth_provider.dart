@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../../../../core/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/auth_interceptor.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -99,7 +100,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _initializeServerUrlAndAuth() async {
     final savedUrl = await _storage.getApiBaseUrl();
-    if (savedUrl != null) {
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      AppConfig.setBaseUrl(savedUrl);
       _ref.read(apiUrlProvider.notifier).state = savedUrl;
     }
     await _checkAuth();
@@ -222,6 +224,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _storage.saveTokens('', ''); // Limpiar tokens pero preservar preferencia de huella y credenciales
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  /// Limpia también la URL del servidor (llamado desde Settings → Desvincular).
+  Future<void> disconnectServer() async {
+    AppConfig.clearBaseUrl();
+    _ref.read(apiUrlProvider.notifier).state = null;
+    await _storage.saveApiBaseUrl('');
+    await logout();
   }
 
   Future<void> updateSettings(Map<String, dynamic> data) async {

@@ -330,13 +330,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         minimumSize: const Size.fromHeight(48),
                       ),
                       onPressed: () async {
-                        // Limpiar URL del servidor
-                        final storage = ref.read(secureStorageProvider);
-                        await storage.saveApiBaseUrl('');
-                        await ref.read(authProvider.notifier).logout();
-                        
-                        // Limpiar el provider de la API
-                        ref.read(apiUrlProvider.notifier).state = null;
+                        await ref.read(authProvider.notifier).disconnectServer();
                       },
                       child: const Text(
                         'Desvincular y Cambiar Servidor 🌐',

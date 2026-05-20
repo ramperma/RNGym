@@ -2,13 +2,15 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 import '../domain/workout_session.dart';
 
 class WorkoutSessionApi {
+  String get _base => AppConfig.baseUrl ?? Env.apiBaseUrl;
+
   Future<List<WorkoutSession>> fetchSessions() async {
-    final response =
-        await http.get(Uri.parse('${Env.apiBaseUrl}/workout-sessions'));
+    final response = await http.get(Uri.parse('$_base/workout-sessions'));
     if (response.statusCode != 200) {
       throw Exception('Backend error: ${response.statusCode}');
     }
@@ -29,7 +31,7 @@ class WorkoutSessionApi {
     String notes = '',
   }) async {
     final response = await http.post(
-      Uri.parse('${Env.apiBaseUrl}/workout-sessions'),
+      Uri.parse('$_base/workout-sessions'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'exercise_id': exerciseId,

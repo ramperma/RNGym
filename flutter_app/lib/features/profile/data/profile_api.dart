@@ -2,13 +2,15 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 import '../domain/user_profile.dart';
 
 class ProfileApi {
+  String get _base => AppConfig.baseUrl ?? Env.apiBaseUrl;
+
   Future<UserProfile> fetchProfile() async {
-    final response =
-        await http.get(Uri.parse('${Env.apiBaseUrl}/user-profile'));
+    final response = await http.get(Uri.parse('$_base/user-profile'));
     if (response.statusCode != 200) {
       throw Exception('Backend error: ${response.statusCode}');
     }
@@ -24,7 +26,7 @@ class ProfileApi {
 
   Future<UserProfile> saveProfile(UserProfileUpdate update) async {
     final response = await http.put(
-      Uri.parse('${Env.apiBaseUrl}/user-profile'),
+      Uri.parse('$_base/user-profile'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(update.toJson()),
     );
@@ -43,7 +45,7 @@ class ProfileApi {
   }
 
   Future<AiStatus> fetchAiStatus() async {
-    final response = await http.get(Uri.parse('${Env.apiBaseUrl}/ai/status'));
+    final response = await http.get(Uri.parse('$_base/ai/status'));
     if (response.statusCode != 200) {
       throw Exception('Backend error: ${response.statusCode}');
     }

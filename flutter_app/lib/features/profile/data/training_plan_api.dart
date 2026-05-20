@@ -2,9 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:gym_trainer_app/core/app_config.dart';
 import 'package:gym_trainer_app/core/env.dart';
 
 class TrainingPlanApi {
+  String get _base => AppConfig.baseUrl ?? Env.apiBaseUrl;
+
   Future<Map<String, dynamic>> generateTrainingPlan({
     required String trainingType,
     required int restDays,
@@ -14,7 +17,7 @@ class TrainingPlanApi {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${Env.apiBaseUrl}/ai/training-plan'),
+        Uri.parse('$_base/ai/training-plan'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'training_type': trainingType,

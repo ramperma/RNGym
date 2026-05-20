@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/app_config.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ServerConfigScreen extends ConsumerStatefulWidget {
@@ -87,6 +87,9 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
         // Guardar la URL en el almacenamiento seguro
         final storage = ref.read(secureStorageProvider);
         await storage.saveApiBaseUrl(fullUrl);
+
+        // Actualizar el singleton de configuración global
+        AppConfig.setBaseUrl(fullUrl);
 
         // Actualizar el provider de la API
         ref.read(apiUrlProvider.notifier).state = fullUrl;
