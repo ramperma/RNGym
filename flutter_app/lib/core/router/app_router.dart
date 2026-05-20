@@ -15,13 +15,30 @@ import '../../features/ai/presentation/screens/ai_recommendation_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/screens/server_config_screen.dart';
 
+class RouterNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
+
+final routerNotifierProvider = Provider((ref) {
+  final notifier = RouterNotifier();
+  ref.listen(authProvider, (previous, next) {
+    notifier.refresh();
+  });
+  ref.listen(apiUrlProvider, (previous, next) {
+    notifier.refresh();
+  });
+  return notifier;
+});
+
 final routerProvider = Provider((ref) {
-  final authState = ref.watch(authProvider);
-  final serverUrl = ref.watch(apiUrlProvider);
+  final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: notifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final serverUrl = ref.read(apiUrlProvider);
       final hasServer = serverUrl != null;
       final isOnServerConfig = state.matchedLocation == '/server-config';
 
