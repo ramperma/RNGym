@@ -89,14 +89,15 @@ String _humanReadableError(Object e) {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  final AuthApi _api;
   final SecureStorage _storage;
   final Ref _ref;
   final LocalAuthentication _localAuth = LocalAuthentication();
 
-  AuthNotifier(this._api, this._storage, this._ref) : super(const AuthState()) {
+  AuthNotifier(this._storage, this._ref) : super(const AuthState()) {
     _initializeServerUrlAndAuth();
   }
+
+  AuthApi get _api => _ref.read(authApiProvider);
 
   Future<void> _initializeServerUrlAndAuth() async {
     final savedUrl = await _storage.getApiBaseUrl();
@@ -250,7 +251,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final api = ref.watch(authApiProvider);
   final storage = ref.watch(secureStorageProvider);
-  return AuthNotifier(api, storage, ref);
+  return AuthNotifier(storage, ref);
 });

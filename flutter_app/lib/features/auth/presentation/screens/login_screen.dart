@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:gym_trainer_app/features/auth/presentation/providers/auth_provider.dart';
@@ -18,38 +19,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _autoBiometricsAttempted = false; // Flag to prevent infinite biometric loops on Android pause/resume lifecycle
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _tryBiometricLogin());
+    Future.microtask(() => _prefillSavedCredentials());
   }
 
-  Future<void> _tryBiometricLogin() async {
-    if (_autoBiometricsAttempted) return;
-    
-    final authState = ref.read(authProvider);
-    if (authState.status == AuthStatus.loading || authState.status == AuthStatus.authenticated) {
-      return;
-    }
-    
-    _autoBiometricsAttempted = true;
-
+  Future<void> _prefillSavedCredentials() async {
+    if (!mounted) return;
     final storage = ref.read(secureStorageProvider);
-    final bioEnabled = await storage.isBiometricEnabled();
     final email = await storage.getUserEmail();
-    final password = await storage.getPassword();
-    
+    if (!mounted) return;
     if (email != null) {
       _emailController.text = email;
-      if (password != null) {
-        _passwordController.text = password;
-      }
-    }
-
-    if (bioEnabled && email != null && password != null) {
-      await ref.read(authProvider.notifier).loginWithBiometrics();
     }
   }
 
@@ -62,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
+      FocusScope.of(context).unfocus();
       ref.read(authProvider.notifier).login(
             _emailController.text.trim(),
             _passwordController.text,
@@ -74,6 +58,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated && mounted) {
+        context.go('/');
+        return;
+      }
+
       if (next.status == AuthStatus.error && next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -266,7 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: TextStyle(color: Colors.white54),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.of(context).pushNamed('/register'),
+                            onPressed: () => context.push('/register'),
                             child: const Text(
                               'Regístrate',
                               style: TextStyle(
