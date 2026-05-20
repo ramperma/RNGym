@@ -256,7 +256,7 @@ INSTRUCCIONES PARA ESTE DÍA ESPECÍFICO (MUY IMPORTANTE):
 3. ENFOQUE MUSCULAR MANDATORIO: Esta sesión de entrenamiento debe centrarse estrictamente en: {enfoque_muscular}. Solo incluye ejercicios correspondientes a este enfoque muscular para evitar solapamiento con otros días.
 4. Debe tener exactamente 3 bloques:
    - Bloque "calentamiento" (5-10 min, máximo 2 ejercicios).
-   - Bloque "principal" (35-50 min, máximo 5 ejercicios de alta calidad adaptados a su nivel y al enfoque muscular del día).
+   - Bloque "principal" (35-50 min, MÍNIMO {req.min_ejercicios_por_sesion} ejercicios de alta calidad adaptados a su nivel y al enfoque muscular del día).
    - Bloque "enfriamiento" (5 min, máximo 2 ejercicios/estiramientos).
 5. Si el usuario tiene máquinas personalizadas, úsalas referenciándolas por su exacto machine_nombre en el campo correspondiente. El campo machine_id es opcional (pon su ID de la lista si es una máquina personalizada).
 6. Las instrucciones de ejecución (campo "notas" dentro de cada ejercicio) deben ser sumamente claras y descriptivas, de unas 2-3 líneas de texto técnico (máximo 25 palabras). Da detalles de ejecución correctos y precisos!

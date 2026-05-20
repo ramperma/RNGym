@@ -59,6 +59,7 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
     List<String> preferenciasEquipamiento = const [],
     int? porcentajeMaquinasGuiadas,
     int? porcentajePesoLibre,
+    int minEjerciciosPorSesion = 4,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -75,6 +76,7 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
         preferenciasEquipamiento: preferenciasEquipamiento,
         porcentajeMaquinasGuiadas: porcentajeMaquinasGuiadas,
         porcentajePesoLibre: porcentajePesoLibre,
+        minEjerciciosPorSesion: minEjerciciosPorSesion,
       );
       state = state.copyWith(isLoading: false, plan: plan, planes: [plan, ...state.planes]);
     } catch (e) {

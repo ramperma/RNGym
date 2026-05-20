@@ -24,6 +24,7 @@ class AIApi {
     List<String> preferenciasEquipamiento = const [],
     int? porcentajeMaquinasGuiadas,
     int? porcentajePesoLibre,
+    int minEjerciciosPorSesion = 4,
   }) async {
     final response = await _client.post('/ai/weekly-plan', data: {
       'objetivo': objetivo,
@@ -38,6 +39,7 @@ class AIApi {
       'preferencias_equipamiento': preferenciasEquipamiento,
       'porcentaje_maquinas_guiadas': porcentajeMaquinasGuiadas,
       'porcentaje_peso_libre': porcentajePesoLibre,
+      'min_ejercicios_por_sesion': minEjerciciosPorSesion,
     });
     final data = response.data as Map<String, dynamic>;
     return PlanSemanal.fromJson(data['plan_guardado'] as Map<String, dynamic>);

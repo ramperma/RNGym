@@ -70,6 +70,9 @@ class AIWeeklyPlanRequest(BaseModel):
     porcentaje_peso_libre: int | None = Field(
         None, ge=0, le=100, description="Porcentaje deseado de peso libre y mancuernas"
     )
+    min_ejercicios_por_sesion: int = Field(
+        4, ge=2, le=12, description="Mínimo de ejercicios en el bloque principal por sesión"
+    )
 
 
 class PlanSemanalCreate(BaseModel):

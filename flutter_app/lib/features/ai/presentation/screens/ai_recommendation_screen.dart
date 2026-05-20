@@ -35,6 +35,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   int _porcentajeMaquinasGuiadas = 50;
   int _porcentajePesoLibre = 50;
   bool _usarMisMaquinas = true;
+  int _minEjerciciosPorSesion = 4;
 
   @override
   void initState() {
@@ -297,6 +298,23 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       inactiveColor: Colors.white.withOpacity(0.1),
                       divisions: 9,
                       onChanged: (v) => setState(() => _duracionMax = v.round()),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Mínimo de ejercicios por sesión', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
+                        Text('$_minEjerciciosPorSesion ejercicios', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6B00))),
+                      ],
+                    ),
+                    Slider(
+                      value: _minEjerciciosPorSesion.toDouble(),
+                      min: 2,
+                      max: 12,
+                      activeColor: const Color(0xFFFF6B00),
+                      inactiveColor: Colors.white.withOpacity(0.1),
+                      divisions: 10,
+                      onChanged: (v) => setState(() => _minEjerciciosPorSesion = v.round()),
                     ),
                     const SizedBox(height: 16),
                     const Text('Nivel de experiencia', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
@@ -1174,6 +1192,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
       preferenciasEquipamiento: _prefEquipamientoSeleccionados,
       porcentajeMaquinasGuiadas: _personalizarProporcion ? _porcentajeMaquinasGuiadas : null,
       porcentajePesoLibre: _personalizarProporcion ? _porcentajePesoLibre : null,
+      minEjerciciosPorSesion: _minEjerciciosPorSesion,
     );
   }
 
