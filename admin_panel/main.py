@@ -82,9 +82,32 @@ elif page == "Gestión de Usuarios":
             if submit:
                 with Session(engine) as session:
                     hashed = hash_password(new_pass)
-                    user = Usuario(email=new_email, nombre=new_name, hashed_password=hashed, rol=new_role, consentimiento_gdpr=True)
-                    session.add(user)
+                    from uuid import uuid4
+                    from datetime import datetime
                     try:
+                        session.execute(
+                            text("""
+                                INSERT INTO usuarios (
+                                    id, email, hashed_password, nombre, apellidos, rol, idioma, timezone,
+                                    email_verificado, fecha_alta, esta_activo, consentimiento_gdpr,
+                                    consentimiento_marketing, version_politica_privacidad, permitir_ia,
+                                    max_rutinas, max_sesiones_semana
+                                ) VALUES (
+                                    :id, :email, :hashed_password, :nombre, :apellidos,
+                                    CAST(:rol AS rol_usuario), 'es', 'Europe/Madrid', false,
+                                    :fecha_alta, true, true, false, '1.0', true, 5, 7
+                                )
+                            """),
+                            {
+                                "id": str(uuid4()),
+                                "email": new_email,
+                                "hashed_password": hashed,
+                                "nombre": new_name,
+                                "apellidos": None,
+                                "rol": new_role,
+                                "fecha_alta": datetime.now(),
+                            },
+                        )
                         session.commit()
                         st.success(f"Usuario {new_name} creado correctamente.")
                         st.rerun()
@@ -131,13 +154,27 @@ elif page == "Gestión de Usuarios":
             
             if update:
                 with Session(engine) as session:
-                    db_user = session.get(Usuario, selected_user.id)
-                    db_user.nombre = edit_name
-                    db_user.rol = edit_role
-                    db_user.esta_activo = edit_active
-                    db_user.permitir_ia = edit_permitir_ia
-                    db_user.max_rutinas = edit_max_r
-                    db_user.max_sesiones_semana = edit_max_s
+                    session.execute(
+                        text("""
+                            UPDATE usuarios
+                            SET nombre = :nombre,
+                                rol = CAST(:rol AS rol_usuario),
+                                esta_activo = :esta_activo,
+                                permitir_ia = :permitir_ia,
+                                max_rutinas = :max_rutinas,
+                                max_sesiones_semana = :max_sesiones_semana
+                            WHERE id = :id
+                        """),
+                        {
+                            "nombre": edit_name,
+                            "rol": edit_role,
+                            "esta_activo": edit_active,
+                            "permitir_ia": edit_permitir_ia,
+                            "max_rutinas": edit_max_r,
+                            "max_sesiones_semana": edit_max_s,
+                            "id": selected_user.id,
+                        },
+                    )
                     session.commit()
                     st.success("Usuario actualizado correctamente.")
                     st.rerun()
