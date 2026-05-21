@@ -325,24 +325,61 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
-  String _getExerciseIdByName(String name) {
-    final match = _exerciseCatalog.firstWhere(
-      (e) => e.name.toLowerCase().trim() == name.toLowerCase().trim(),
-      orElse: () => _exerciseCatalog.isNotEmpty
-          ? _exerciseCatalog.first
-          : const Exercise(
-              id: '00000000-0000-0000-0000-000000000000',
-              name: '',
-              muscleGroup: '',
-              difficulty: '',
-              equipment: '',
-              description: '',
-              instructions: '',
-              defaultSets: 0,
-              defaultReps: '',
-            ),
-    );
-    return match.id;
+  String _normalizeExerciseName(String value) {
+    final lower = value.toLowerCase().trim();
+    final map = {
+      'á': 'a',
+      'à': 'a',
+      'ä': 'a',
+      'â': 'a',
+      'é': 'e',
+      'è': 'e',
+      'ë': 'e',
+      'ê': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'ï': 'i',
+      'î': 'i',
+      'ó': 'o',
+      'ò': 'o',
+      'ö': 'o',
+      'ô': 'o',
+      'ú': 'u',
+      'ù': 'u',
+      'ü': 'u',
+      'û': 'u',
+      'ñ': 'n',
+    };
+    var out = lower;
+    map.forEach((k, v) {
+      out = out.replaceAll(k, v);
+    });
+    out = out.replaceAll(RegExp(r'[^a-z0-9 ]'), ' ');
+    out = out.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return out;
+  }
+
+  String? _getExerciseIdByName(String name) {
+    if (_exerciseCatalog.isEmpty) return null;
+
+    final target = _normalizeExerciseName(name);
+
+    // 1) Coincidencia exacta normalizada
+    for (final e in _exerciseCatalog) {
+      if (_normalizeExerciseName(e.name) == target) {
+        return e.id;
+      }
+    }
+
+    // 2) Coincidencia por inclusión ("prensa piernas" <-> "prensa de piernas")
+    for (final e in _exerciseCatalog) {
+      final candidate = _normalizeExerciseName(e.name);
+      if (candidate.contains(target) || target.contains(candidate)) {
+        return e.id;
+      }
+    }
+
+    return null;
   }
 
   void _finishWorkout() async {
@@ -375,6 +412,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       int totalSetsCompleted = 0;
       double totalTonnage = 0;
 
+      final unresolvedExercises = <String>[];
+
       for (var bloque in _selectedDayPlan!.bloques) {
         for (var ex in bloque.ejercicios) {
           final records = _workoutRecords[ex.nombreEjercicio] ?? [];
@@ -382,6 +421,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           
           if (completed.isNotEmpty) {
             final exerciseId = _getExerciseIdByName(ex.nombreEjercicio);
+            if (exerciseId == null) {
+              unresolvedExercises.add(ex.nombreEjercicio);
+              continue;
+            }
             
             final payload = completed.map((r) => {
               'set_numero': r.setIndex,
@@ -413,6 +456,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       // Show gorgeous congratulations screen modal
       if (mounted) {
         _showSuccessDialog(totalSetsCompleted, totalTonnage);
+        if (unresolvedExercises.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.orange,
+              content: Text(
+                'No se pudieron vincular algunos ejercicios: ${unresolvedExercises.join(', ')}',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
