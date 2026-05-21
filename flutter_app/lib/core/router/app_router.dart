@@ -9,6 +9,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/health_profile/presentation/screens/health_profile_screen.dart';
 import '../../features/routines/presentation/screens/routine_list_screen.dart';
 import '../../features/sessions/presentation/screens/session_list_screen.dart';
+import '../../features/sessions/presentation/screens/session_detail_screen.dart';
 import '../../features/sessions/presentation/screens/active_workout_screen.dart';
 import '../../features/daily_records/presentation/screens/daily_records_screen.dart';
 import '../../features/ai/presentation/screens/ai_recommendation_screen.dart';
@@ -71,6 +72,10 @@ final routerProvider = Provider((ref) {
       GoRoute(path: '/health-profile', builder: (context, state) => const HealthProfileScreen()),
       GoRoute(path: '/routines', builder: (context, state) => const RoutineListScreen()),
       GoRoute(path: '/sessions', builder: (context, state) => const ActiveWorkoutScreen()),
+      GoRoute(
+        path: '/sessions/:id',
+        builder: (context, state) => SessionDetailScreen(sessionId: state.pathParameters['id']!),
+      ),
       GoRoute(path: '/daily-records', builder: (context, state) => const SessionListScreen()),
       GoRoute(path: '/ai', builder: (context, state) => const AIRecommendationScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),

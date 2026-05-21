@@ -32,17 +32,21 @@ class SesionEntreno {
   factory SesionEntreno.fromJson(Map<String, dynamic> json) {
     return SesionEntreno(
       id: json['id'] as String,
-      usuarioId: json['usuario_id'] as String,
+      usuarioId: json['usuario_id'] as String? ?? '',
       rutinaId: json['rutina_id'] as String?,
       nombre: json['nombre'] as String?,
-      fechaInicio: DateTime.parse(json['fecha_inicio'] as String),
+      fechaInicio: json['fecha_inicio'] != null
+          ? DateTime.parse(json['fecha_inicio'] as String)
+          : DateTime.now(),
       fechaFin: json['fecha_fin'] != null ? DateTime.parse(json['fecha_fin'] as String) : null,
       duracionMinutos: json['duracion_minutos'] as int?,
       estado: json['estado'] as String? ?? 'planificada',
       kcalEstimadas: json['kcal_estimadas'] as int?,
       kcalReal: json['kcal_real'] as int?,
       notas: json['notas'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
       registros: (json['registros'] as List<dynamic>?)
               ?.map((e) => SesionEjercicioRegistro.fromJson(e as Map<String, dynamic>))
               .toList() ??
