@@ -1,30 +1,26 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../../../core/app_config.dart';
-import '../../../../core/env.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/error_reporter.dart';
+import '../../../../core/network/api_client.dart';
 import '../domain/dashboard_stats.dart';
 
 class DashboardApi {
-  String get _base => AppConfig.baseUrl ?? Env.apiBaseUrl;
+  final ApiClient _client;
+
+  DashboardApi(this._client);
 
   Future<DashboardStats> fetchStats() async {
     try {
-      final uri = Uri.parse('$_base/dashboard/stats');
-      final response = await http.get(uri);
-
-      if (response.statusCode != 200) {
-        final detail = 'HTTP ${response.statusCode} en $uri\nBody: ${response.body}';
-        ErrorReporter.report(
-          Exception('[DashboardApi] $detail'),
-          StackTrace.current,
-          source: 'DashboardApi.fetchStats',
-        );
-        throw Exception('Error cargando stats: ${response.statusCode}\nURI: $uri\nRespuesta: ${response.body}');
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      return DashboardStats.fromJson(body);
+      final response = await _client.get('/dashboard/stats');
+      return DashboardStats.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final detail =
+          'HTTP ${e.response?.statusCode} en /dashboard/stats\nBody: ${e.response?.data}';
+      ErrorReporter.report(
+        Exception('[DashboardApi] $detail'),
+        e.stackTrace ?? StackTrace.current,
+        source: 'DashboardApi.fetchStats',
+      );
+      throw Exception('Error cargando stats: ${e.response?.statusCode}\nRespuesta: ${e.response?.data}');
     } catch (e, st) {
       ErrorReporter.report(
         Exception('[DashboardApi] fetchStats falló: $e'),

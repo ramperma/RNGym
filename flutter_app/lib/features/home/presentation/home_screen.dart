@@ -22,13 +22,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _api = ExerciseApi();
-  final _dashboardApi = DashboardApi();
+  late DashboardApi _dashboardApi;
   late Future<List<Exercise>> _futureExercises;
   late Future<DashboardStats> _futureStats;
 
   @override
   void initState() {
     super.initState();
+    _dashboardApi = DashboardApi(ref.read(apiClientProvider));
     _futureExercises = _api.fetchExercises();
     _futureStats = _dashboardApi.fetchStats();
     // Pre-load the active weekly plan on application startup
@@ -39,6 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _reload() async {
     setState(() {
+      _dashboardApi = DashboardApi(ref.read(apiClientProvider));
       _futureExercises = _api.fetchExercises();
       _futureStats = _dashboardApi.fetchStats();
     });
