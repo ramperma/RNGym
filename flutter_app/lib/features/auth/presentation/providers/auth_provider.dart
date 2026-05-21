@@ -117,9 +117,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _api.getCurrentUser();
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
+    } on DioException catch (e) {
+      final isAuthError = e.response?.statusCode == 401 || e.response?.statusCode == 403;
+      final isConnectionError = e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.unknown;
+
+      if (isAuthError) {
+        // Token realmente inválido: limpiar solo auth, preservar servidor/biometría
+        await _storage.clearAuthOnly();
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+      } else if (isConnectionError) {
+        // El servidor no responde; no borramos nada para que el usuario
+        // pueda reintentar con biometría cuando vuelva la conexión.
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          error: 'No se pudo contactar al servidor. Revisa tu conexión.',
+        );
+      } else {
+        // Otro error de red (5xx, etc.): igual, no destruimos la sesión
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          error: _humanReadableError(e),
+        );
+      }
     } catch (e) {
-      await _storage.saveTokens('', ''); // Limpiar tokens caducados pero mantener biometría
-      state = state.copyWith(status: AuthStatus.unauthenticated);
+      // Errores inesperados no relacionados con la red: tampoco borramos
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: _humanReadableError(e),
+      );
     }
   }
 

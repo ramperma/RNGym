@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     secret_key: str = "changeme-dev-secret-key-replace-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 120
     refresh_token_expire_days: int = 30
 
     openai_api_key: str | None = None

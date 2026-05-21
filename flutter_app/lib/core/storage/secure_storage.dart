@@ -63,6 +63,15 @@ class SecureStorage {
     await _storage.deleteAll();
   }
 
+  /// Borra solo las credenciales de autenticación (tokens + user_id),
+  /// preservando la URL del servidor, email, contraseña y preferencias
+  /// biométricas para que el usuario no tenga que reconfigurar todo.
+  Future<void> clearAuthOnly() async {
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _userIdKey);
+  }
+
   Future<void> saveApiBaseUrl(String url) async {
     await _storage.write(key: _apiBaseUrlKey, value: url);
   }

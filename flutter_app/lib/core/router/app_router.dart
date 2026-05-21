@@ -34,10 +34,14 @@ final routerProvider = Provider((ref) {
   final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/login',
     refreshListenable: notifier,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
+
+      // Todavía cargando desde storage — no tomar decisiones de routing aún
+      if (authState.status == AuthStatus.initial) return null;
+
       final serverUrl = ref.read(apiUrlProvider);
       final hasServer = serverUrl != null;
       final isOnServerConfig = state.matchedLocation == '/server-config';

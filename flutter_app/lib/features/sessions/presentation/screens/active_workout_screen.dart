@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../exercises/data/exercise_api.dart';
 import '../../../exercises/domain/exercise.dart';
@@ -26,6 +28,22 @@ class WorkoutSetRecord {
     this.reps = 10,
     this.isCompleted = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'setIndex': setIndex,
+        'weight': weight,
+        'reps': reps,
+        'isCompleted': isCompleted,
+      };
+
+  factory WorkoutSetRecord.fromJson(Map<String, dynamic> json) {
+    return WorkoutSetRecord(
+      setIndex: json['setIndex'] as int,
+      weight: (json['weight'] as num).toDouble(),
+      reps: json['reps'] as int,
+      isCompleted: json['isCompleted'] as bool,
+    );
+  }
 }
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
@@ -45,11 +63,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   Timer? _timer;
   int _elapsedSeconds = 0;
   bool _isWorkoutActive = false;
+  DateTime? _workoutStartTime;
+
+  static const _prefsPrefix = 'active_workout_';
 
   @override
   void initState() {
     super.initState();
-    _loadCatalogAndPlan();
+    _loadCatalogAndPlan().then((_) {
+      if (mounted) _checkSavedWorkout();
+    });
   }
 
   @override
@@ -61,11 +84,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   void _startTimer() {
     _timer?.cancel();
     _isWorkoutActive = true;
+    _workoutStartTime ??= DateTime.now();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
           _elapsedSeconds++;
         });
+        if (_elapsedSeconds % 30 == 0) {
+          _saveWorkoutState();
+        }
       }
     });
   }
@@ -129,6 +156,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     setState(() {
       _selectedDayPlan = dayPlan;
       _workoutRecords.clear();
+      _elapsedSeconds = 0;
+      _workoutStartTime = DateTime.now();
 
       // Initialize sets for each exercise in this day
       for (var bloque in dayPlan.bloques) {
@@ -150,6 +179,150 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         _startTimer();
       }
     });
+    _saveWorkoutState();
+  }
+
+  void _restoreDayPlan(
+    PlanDia dayPlan,
+    Map<String, List<WorkoutSetRecord>> records,
+    int elapsed,
+  ) {
+    setState(() {
+      _selectedDayPlan = dayPlan;
+      _workoutRecords.clear();
+      _workoutRecords.addAll(records);
+      _elapsedSeconds = elapsed;
+      _workoutStartTime = DateTime.now().subtract(Duration(seconds: elapsed));
+
+      if (!_isWorkoutActive) {
+        _startTimer();
+      }
+    });
+    _saveWorkoutState();
+  }
+
+  // ─── Local persistence ─────────────────────────────────────────────────────
+
+  Future<void> _saveWorkoutState() async {
+    if (_selectedDayPlan == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final plan = ref.read(weeklyPlanProvider).plan;
+    await prefs.setBool('${_prefsPrefix}active', true);
+    await prefs.setString('${_prefsPrefix}plan_id', plan?.id ?? '');
+    await prefs.setString('${_prefsPrefix}dia_nombre', _selectedDayPlan!.nombreDia);
+    await prefs.setInt('${_prefsPrefix}elapsed', _elapsedSeconds);
+    await prefs.setString('${_prefsPrefix}saved_at', DateTime.now().toIso8601String());
+
+    final recordsJson = _workoutRecords.map(
+      (k, v) => MapEntry(k, v.map((r) => r.toJson()).toList()),
+    );
+    await prefs.setString('${_prefsPrefix}records', jsonEncode(recordsJson));
+  }
+
+  Future<void> _clearWorkoutState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('${_prefsPrefix}active');
+    await prefs.remove('${_prefsPrefix}plan_id');
+    await prefs.remove('${_prefsPrefix}dia_nombre');
+    await prefs.remove('${_prefsPrefix}elapsed');
+    await prefs.remove('${_prefsPrefix}saved_at');
+    await prefs.remove('${_prefsPrefix}records');
+  }
+
+  Future<void> _checkSavedWorkout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final active = prefs.getBool('${_prefsPrefix}active') ?? false;
+    if (!active) return;
+
+    final savedDiaNombre = prefs.getString('${_prefsPrefix}dia_nombre');
+    final savedElapsed = prefs.getInt('${_prefsPrefix}elapsed') ?? 0;
+    final savedAtStr = prefs.getString('${_prefsPrefix}saved_at');
+    final recordsJsonStr = prefs.getString('${_prefsPrefix}records');
+
+    if (savedDiaNombre == null || savedDiaNombre.isEmpty) {
+      await _clearWorkoutState();
+      return;
+    }
+
+    // Tiempo extra transcurrido mientras la app estaba cerrada
+    int extraSeconds = 0;
+    if (savedAtStr != null) {
+      try {
+        final savedAt = DateTime.parse(savedAtStr);
+        extraSeconds = DateTime.now().difference(savedAt).inSeconds;
+      } catch (_) {}
+    }
+    final restoredElapsed = savedElapsed + extraSeconds;
+
+    final plan = ref.read(weeklyPlanProvider).plan;
+    if (plan == null) {
+      await _clearWorkoutState();
+      return;
+    }
+
+    PlanDia? targetDay;
+    for (var d in plan.planJson.dias) {
+      if (d.nombreDia == savedDiaNombre) {
+        targetDay = d;
+        break;
+      }
+    }
+    if (targetDay == null) {
+      await _clearWorkoutState();
+      return;
+    }
+
+    Map<String, List<WorkoutSetRecord>> restoredRecords = {};
+    if (recordsJsonStr != null && recordsJsonStr.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(recordsJsonStr) as Map<String, dynamic>;
+        decoded.forEach((key, value) {
+          restoredRecords[key] = (value as List<dynamic>)
+              .map((e) => WorkoutSetRecord.fromJson(e as Map<String, dynamic>))
+              .toList();
+        });
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131317),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Entrenamiento en progreso',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Tienes un entrenamiento sin finalizar: "${targetDay!.nombreDia}". '
+          'Llevabas ${(restoredElapsed ~/ 60)} min. ¿Quieres reanudarlo?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _clearWorkoutState();
+            },
+            child: const Text('Descartar', style: TextStyle(color: Colors.redAccent)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B00),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _restoreDayPlan(targetDay!, restoredRecords, restoredElapsed);
+            },
+            child: const Text('Reanudar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getExerciseIdByName(String name) {
@@ -234,6 +407,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       // Stop timer
       _timer?.cancel();
       _isWorkoutActive = false;
+      _workoutStartTime = null;
+      await _clearWorkoutState();
 
       // Show gorgeous congratulations screen modal
       if (mounted) {
@@ -764,6 +939,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                     setState(() {
                                       if (record.weight > 2.5) record.weight -= 2.5;
                                     });
+                                    _saveWorkoutState();
                                   },
                           ),
                           const SizedBox(width: 4),
@@ -790,6 +966,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                     setState(() {
                                       record.weight += 2.5;
                                     });
+                                    _saveWorkoutState();
                                   },
                           ),
                         ],
@@ -812,6 +989,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                     setState(() {
                                       if (record.reps > 1) record.reps--;
                                     });
+                                    _saveWorkoutState();
                                   },
                           ),
                           const SizedBox(width: 4),
@@ -838,6 +1016,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                     setState(() {
                                       record.reps++;
                                     });
+                                    _saveWorkoutState();
                                   },
                           ),
                         ],
@@ -854,6 +1033,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                             setState(() {
                               record.isCompleted = !record.isCompleted;
                             });
+                            _saveWorkoutState();
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
