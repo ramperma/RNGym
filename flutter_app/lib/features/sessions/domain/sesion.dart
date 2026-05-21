@@ -59,6 +59,9 @@ class SesionEjercicioRegistro {
   final String id;
   final String sesionId;
   final String ejercicioId;
+  final String? ejercicioNombre;
+  final String? ejercicioGrupoMuscular;
+  final String? ejercicioEquipo;
   final int setNumero;
   final double? pesoKg;
   final int? repeticiones;
@@ -71,6 +74,9 @@ class SesionEjercicioRegistro {
     required this.id,
     required this.sesionId,
     required this.ejercicioId,
+    this.ejercicioNombre,
+    this.ejercicioGrupoMuscular,
+    this.ejercicioEquipo,
     required this.setNumero,
     this.pesoKg,
     this.repeticiones,
@@ -85,6 +91,9 @@ class SesionEjercicioRegistro {
       id: json['id'] as String,
       sesionId: json['sesion_id'] as String,
       ejercicioId: json['ejercicio_id'] as String,
+      ejercicioNombre: json['ejercicio_nombre'] as String?,
+      ejercicioGrupoMuscular: json['ejercicio_grupo_muscular'] as String?,
+      ejercicioEquipo: json['ejercicio_equipo'] as String?,
       setNumero: json['set_numero'] as int,
       pesoKg: (json['peso_kg'] as num?)?.toDouble(),
       repeticiones: json['repeticiones'] as int?,

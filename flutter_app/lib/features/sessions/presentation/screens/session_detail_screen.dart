@@ -89,6 +89,8 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     }
 
     final s = _session!;
+    final ejerciciosAgrupados = _agruparPorEjercicio(s.registros);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -98,7 +100,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
           const SizedBox(height: 24),
           _buildInfoCard(s),
           const SizedBox(height: 24),
-          if (s.registros.isNotEmpty) ...[
+          if (ejerciciosAgrupados.isNotEmpty) ...[
             const Text(
               'EJERCICIOS REALIZADOS',
               style: TextStyle(
@@ -109,11 +111,24 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            ...s.registros.map((r) => _buildRegistroCard(r)),
+            ...ejerciciosAgrupados.entries.map((entry) => _buildEjercicioCard(entry.key, entry.value)),
           ],
         ],
       ),
     );
+  }
+
+  Map<String, List<SesionEjercicioRegistro>> _agruparPorEjercicio(List<SesionEjercicioRegistro> registros) {
+    final map = <String, List<SesionEjercicioRegistro>>{};
+    for (var r in registros) {
+      final key = r.ejercicioNombre ?? r.ejercicioId;
+      map.putIfAbsent(key, () => []).add(r);
+    }
+    // Ordenar sets por número dentro de cada grupo
+    for (var list in map.values) {
+      list.sort((a, b) => a.setNumero.compareTo(b.setNumero));
+    }
+    return map;
   }
 
   Widget _buildHeader(SesionEntreno s) {
@@ -193,75 +208,196 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     );
   }
 
-  Widget _buildRegistroCard(SesionEjercicioRegistro r) {
+  Widget _buildEjercicioCard(String nombreEjercicio, List<SesionEjercicioRegistro> registros) {
+    final primerRegistro = registros.first;
+    final grupoMuscular = primerRegistro.ejercicioGrupoMuscular;
+    final equipo = primerRegistro.ejercicioEquipo;
+
+    // Calcular volumen total
+    double volumenTotal = 0;
+    int setsCompletados = 0;
+    for (var r in registros) {
+      if (r.completado && r.pesoKg != null && r.repeticiones != null) {
+        volumenTotal += r.pesoKg! * r.repeticiones!;
+        setsCompletados++;
+      }
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF15151B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6B00).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${r.setNumero}',
-                style: const TextStyle(color: Color(0xFFFF6B00), fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+          // Header del ejercicio
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Ejercicio: ${r.ejercicioId.substring(0, r.ejercicioId.length > 8 ? 8 : r.ejercicioId.length)}...',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nombreEjercicio,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                      ),
+                      if (grupoMuscular != null && grupoMuscular.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.fitness_center, color: Color(0xFFFF8C00), size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              grupoMuscular,
+                              style: const TextStyle(fontSize: 11, color: Color(0xFFFF8C00), fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (equipo != null && equipo.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.settings_suggest_rounded, color: Colors.white38, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              equipo,
+                              style: const TextStyle(fontSize: 11, color: Colors.white38),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    if (r.pesoKg != null)
-                      _buildRegistroChip('${r.pesoKg!.toInt()} kg'),
-                    if (r.repeticiones != null) ...[
-                      const SizedBox(width: 6),
-                      _buildRegistroChip('${r.repeticiones} reps'),
+                // Volumen total
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B00).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${volumenTotal.toInt()}',
+                        style: const TextStyle(color: Color(0xFFFF6B00), fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      const Text('kg·vol', style: TextStyle(color: Colors.white38, fontSize: 9)),
                     ],
-                    if (r.rpe != null) ...[
-                      const SizedBox(width: 6),
-                      _buildRegistroChip('RPE ${r.rpe}'),
-                    ],
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-          if (r.completado)
-            const Icon(Icons.check_circle, color: Colors.green, size: 20)
-          else
-            const Icon(Icons.radio_button_unchecked, color: Colors.white24, size: 20),
+          const Divider(color: Colors.white10, height: 1),
+
+          // Headers de la tabla de sets
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 32, child: Text('SET', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold))),
+                const Expanded(flex: 3, child: Center(child: Text('PESO (KG)', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
+                const Expanded(flex: 3, child: Center(child: Text('REPS', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
+                const Expanded(flex: 2, child: Center(child: Text('RPE', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
+                const SizedBox(width: 48, child: Center(child: Text('LISTO', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
+              ],
+            ),
+          ),
+
+          // Sets
+          ...registros.map((r) => _buildSetRow(r)),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _buildRegistroChip(String text) {
+  Widget _buildSetRow(SesionEjercicioRegistro r) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(6),
+      color: r.completado ? const Color(0xFF1E281E).withValues(alpha: 0.3) : Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              '#${r.setNumero}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: r.completado ? Colors.green : Colors.white70,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Center(
+              child: Text(
+                r.pesoKg != null ? '${r.pesoKg!.toInt()}' : '-',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: r.completado ? Colors.green : Colors.white,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Center(
+              child: Text(
+                r.repeticiones != null ? '${r.repeticiones}' : '-',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: r.completado ? Colors.green : Colors.white,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Text(
+                r.rpe != null ? '${r.rpe}' : '-',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: r.completado ? Colors.green : Colors.white70,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 48,
+            child: Center(
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: r.completado ? Colors.green : Colors.white.withValues(alpha: 0.04),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: r.completado ? Colors.transparent : Colors.white24,
+                    width: 1.5,
+                  ),
+                ),
+                child: r.completado
+                    ? const Icon(Icons.check, color: Colors.black, size: 14)
+                    : null,
+              ),
+            ),
+          ),
+        ],
       ),
-      child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 11)),
     );
   }
 

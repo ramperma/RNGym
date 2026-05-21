@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import delete, select, update
 
 from app.models.sesion_entreno import SesionEntreno, SesionEjercicioRegistro
+from app.models.ejercicio import Ejercicio
 
 
 def create_sesion(conn, usuario_id: str, data: dict) -> SesionEntreno:
@@ -89,10 +90,43 @@ def registrar_sets(conn, sesion_id: str, usuario_id: str, ejercicio_id: str, reg
     return created
 
 
-def get_registros_by_sesion(conn, sesion_id: str) -> list[SesionEjercicioRegistro]:
+def get_registros_by_sesion(conn, sesion_id: str) -> list[dict]:
     result = conn.execute(
-        select(SesionEjercicioRegistro)
+        select(
+            SesionEjercicioRegistro.id,
+            SesionEjercicioRegistro.sesion_id,
+            SesionEjercicioRegistro.ejercicio_id,
+            Ejercicio.nombre.label("ejercicio_nombre"),
+            Ejercicio.grupo_muscular.label("ejercicio_grupo_muscular"),
+            Ejercicio.equipo_necesario.label("ejercicio_equipo"),
+            SesionEjercicioRegistro.set_numero,
+            SesionEjercicioRegistro.peso_kg,
+            SesionEjercicioRegistro.repeticiones,
+            SesionEjercicioRegistro.rpe,
+            SesionEjercicioRegistro.completado,
+            SesionEjercicioRegistro.notas,
+            SesionEjercicioRegistro.created_at,
+        )
+        .join(Ejercicio, SesionEjercicioRegistro.ejercicio_id == Ejercicio.id)
         .where(SesionEjercicioRegistro.sesion_id == sesion_id)
-        .order_by(SesionEjercicioRegistro.set_numero)
+        .order_by(Ejercicio.nombre, SesionEjercicioRegistro.set_numero)
     )
-    return list(result.scalars().all())
+    rows = result.all()
+    return [
+        {
+            "id": r.id,
+            "sesion_id": r.sesion_id,
+            "ejercicio_id": r.ejercicio_id,
+            "ejercicio_nombre": r.ejercicio_nombre,
+            "ejercicio_grupo_muscular": r.ejercicio_grupo_muscular,
+            "ejercicio_equipo": r.ejercicio_equipo,
+            "set_numero": r.set_numero,
+            "peso_kg": float(r.peso_kg) if r.peso_kg is not None else None,
+            "repeticiones": r.repeticiones,
+            "rpe": r.rpe,
+            "completado": r.completado,
+            "notas": r.notas,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]

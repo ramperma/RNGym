@@ -36,7 +36,24 @@ def _sesion_to_response(sesion, registros: list = None) -> dict:
         "kcal_real": sesion.kcal_real,
         "notas": sesion.notas,
         "created_at": sesion.created_at,
-        "registros": registros or [],
+        "registros": [
+            {
+                "id": r["id"],
+                "sesion_id": r["sesion_id"],
+                "ejercicio_id": r["ejercicio_id"],
+                "ejercicio_nombre": r.get("ejercicio_nombre"),
+                "ejercicio_grupo_muscular": r.get("ejercicio_grupo_muscular"),
+                "ejercicio_equipo": r.get("ejercicio_equipo"),
+                "set_numero": r["set_numero"],
+                "peso_kg": r["peso_kg"],
+                "repeticiones": r["repeticiones"],
+                "rpe": r["rpe"],
+                "completado": r["completado"],
+                "notas": r["notas"],
+                "created_at": r["created_at"],
+            }
+            for r in (registros or [])
+        ],
     }
 
 
@@ -145,6 +162,9 @@ def register_session_exercises(
                     "id": r.id,
                     "sesion_id": r.sesion_id,
                     "ejercicio_id": r.ejercicio_id,
+                    "ejercicio_nombre": r.ejercicio_nombre,
+                    "ejercicio_grupo_muscular": r.ejercicio_grupo_muscular,
+                    "ejercicio_equipo": r.ejercicio_equipo,
                     "set_numero": r.set_numero,
                     "peso_kg": r.peso_kg,
                     "repeticiones": r.repeticiones,
