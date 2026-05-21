@@ -102,6 +102,12 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white70),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white70),
+            onPressed: _session != null ? () => _confirmDelete(_session!.id) : null,
+          ),
+        ],
       ),
       body: _buildBody(),
     );
@@ -481,5 +487,43 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _confirmDelete(String id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF16161E),
+        title: const Text('Eliminar sesión', style: TextStyle(color: Colors.white)),
+        content: const Text('¿Seguro que quieres eliminar esta sesión? No se podrá recuperar.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await ref.read(sessionApiProvider).deleteSession(id);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sesión eliminada'), backgroundColor: Colors.green),
+                  );
+                  context.pop(); // Volver a la lista
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 }

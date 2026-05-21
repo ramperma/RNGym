@@ -78,7 +78,7 @@ class _SessionListScreenState extends ConsumerState<SessionListScreen> {
               trailing: PopupMenuButton(
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'view', child: Text('Ver')),
-                  const PopupMenuItem(value: 'delete', child: Text('Cancelar')),
+                  const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                 ],
                 onSelected: (value) {
                   if (value == 'view') context.push('/sessions/${sesion.id}');

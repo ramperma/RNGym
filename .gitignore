@@ -43,3 +43,6 @@ admin_panel/.env
 
 # Misc
 *.log
+
+# Deploy (APKs)
+deploy/output/
