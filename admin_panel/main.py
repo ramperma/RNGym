@@ -80,7 +80,24 @@ elif page == "Gestión de Usuarios":
             submit = st.form_submit_button("Crear Usuario")
             
             if submit:
+                errores = []
+                if not new_email.strip():
+                    errores.append("El email es obligatorio.")
+                if not new_name.strip():
+                    errores.append("El nombre es obligatorio.")
+                if not new_pass:
+                    errores.append("La contraseña es obligatoria.")
+                if errores:
+                    for err in errores:
+                        st.warning(err, icon="⚠️")
+                    st.stop()
+
                 with Session(engine) as session:
+                    existing = session.execute(text("SELECT 1 FROM usuarios WHERE email = :email"), {"email": new_email}).fetchone()
+                    if existing:
+                        st.error(f"⚠️ El email **{new_email}** ya está registrado. No se puede duplicar.", icon="🚫")
+                        st.stop()
+
                     hashed = hash_password(new_pass)
                     from uuid import uuid4
                     from datetime import datetime
@@ -109,10 +126,14 @@ elif page == "Gestión de Usuarios":
                             },
                         )
                         session.commit()
-                        st.success(f"Usuario {new_name} creado correctamente.")
+                        st.success(f"✅ Usuario **{new_name}** ({new_email}) creado correctamente.")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al crear usuario: {e}")
+                        err_msg = str(e)
+                        if "unique constraint" in err_msg.lower() or "already exists" in err_msg.lower():
+                            st.error(f"🚫 El email **{new_email}** ya está registrado.")
+                        else:
+                            st.error(f"❌ Error inesperado al crear usuario: {err_msg}")
 
     st.subheader("✏️ Editar / Desactivar Usuario")
     
