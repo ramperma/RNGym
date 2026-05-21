@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../exercises/data/exercise_api.dart';
+import '../../../exercises/domain/exercise.dart';
 import '../../domain/sesion.dart';
 import '../providers/sessions_provider.dart';
 
@@ -16,21 +18,35 @@ class SessionDetailScreen extends ConsumerStatefulWidget {
 
 class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   SesionEntreno? _session;
+  List<Exercise> _exerciseCatalog = [];
   bool _isLoading = true;
   String? _error;
+
+  /// Map ejercicioId -> Exercise para buscar nombres, grupos y equipos
+  Map<String, Exercise> get _exerciseById => {
+        for (var e in _exerciseCatalog) e.id: e,
+      };
 
   @override
   void initState() {
     super.initState();
-    _loadSession();
+    _loadData();
   }
 
-  Future<void> _loadSession() async {
+  Future<void> _loadData() async {
     try {
+      // Cargar catálogo de ejercicios en paralelo con la sesión
       final api = ref.read(sessionApiProvider);
-      final session = await api.getSession(widget.sessionId);
+      final catalogFuture = ExerciseApi().fetchExercises();
+      final sessionFuture = api.getSession(widget.sessionId);
+
+      final results = await Future.wait([catalogFuture, sessionFuture]);
+      final catalog = results[0] as List<Exercise>;
+      final session = results[1] as SesionEntreno;
+
       if (mounted) {
         setState(() {
+          _exerciseCatalog = catalog;
           _session = session;
           _isLoading = false;
         });
@@ -43,6 +59,35 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
         });
       }
     }
+  }
+
+  /// Devuelve el nombre legible del ejercicio (del catálogo o del registro)
+  String _resolveExerciseName(SesionEjercicioRegistro r) {
+    // 1. Si el backend ya trae nombre, usarlo
+    if (r.ejercicioNombre != null && r.ejercicioNombre!.isNotEmpty) {
+      return r.ejercicioNombre!;
+    }
+    // 2. Buscar en el catálogo local
+    final catalogExercise = _exerciseById[r.ejercicioId];
+    if (catalogExercise != null) {
+      return catalogExercise.name;
+    }
+    // 3. Fallback al ID (no debería pasar)
+    return r.ejercicioId;
+  }
+
+  String? _resolveMuscleGroup(SesionEjercicioRegistro r) {
+    if (r.ejercicioGrupoMuscular != null && r.ejercicioGrupoMuscular!.isNotEmpty) {
+      return r.ejercicioGrupoMuscular;
+    }
+    return _exerciseById[r.ejercicioId]?.muscleGroup;
+  }
+
+  String? _resolveEquipment(SesionEjercicioRegistro r) {
+    if (r.ejercicioEquipo != null && r.ejercicioEquipo!.isNotEmpty) {
+      return r.ejercicioEquipo;
+    }
+    return _exerciseById[r.ejercicioId]?.equipment;
   }
 
   @override
@@ -76,7 +121,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
             Text('Error: $_error', style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadSession,
+              onPressed: _loadData,
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
               child: const Text('Reintentar', style: TextStyle(color: Colors.black)),
             ),
@@ -112,7 +157,16 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
             ),
             const SizedBox(height: 12),
             ...ejerciciosAgrupados.entries.map((entry) => _buildEjercicioCard(entry.key, entry.value)),
-          ],
+          ] else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'No hay ejercicios registrados en esta sesión.',
+                  style: TextStyle(color: Colors.white38),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -121,7 +175,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   Map<String, List<SesionEjercicioRegistro>> _agruparPorEjercicio(List<SesionEjercicioRegistro> registros) {
     final map = <String, List<SesionEjercicioRegistro>>{};
     for (var r in registros) {
-      final key = r.ejercicioNombre ?? r.ejercicioId;
+      final key = _resolveExerciseName(r);
       map.putIfAbsent(key, () => []).add(r);
     }
     // Ordenar sets por número dentro de cada grupo
@@ -210,16 +264,14 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
   Widget _buildEjercicioCard(String nombreEjercicio, List<SesionEjercicioRegistro> registros) {
     final primerRegistro = registros.first;
-    final grupoMuscular = primerRegistro.ejercicioGrupoMuscular;
-    final equipo = primerRegistro.ejercicioEquipo;
+    final grupoMuscular = _resolveMuscleGroup(primerRegistro);
+    final equipo = _resolveEquipment(primerRegistro);
 
     // Calcular volumen total
     double volumenTotal = 0;
-    int setsCompletados = 0;
     for (var r in registros) {
       if (r.completado && r.pesoKg != null && r.repeticiones != null) {
         volumenTotal += r.pesoKg! * r.repeticiones!;
-        setsCompletados++;
       }
     }
 
