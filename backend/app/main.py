@@ -11,6 +11,7 @@ from app.api.v1.daily_records import router as daily_records_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.me import router as me_router
+from app.api.v1.dashboard import router as dashboard_router
 from app.api.routes import router as public_router
 from app.core.config import settings
 from app.db import engine
@@ -46,6 +47,7 @@ app.include_router(daily_records_router)
 app.include_router(ai_router)
 app.include_router(admin_router)
 app.include_router(me_router)
+app.include_router(dashboard_router)
 
 _flutter_web_dir = (
     Path(__file__).resolve().parents[1] / "../flutter_app/build/web"

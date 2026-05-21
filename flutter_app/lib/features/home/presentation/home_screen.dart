@@ -5,10 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:gym_trainer_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:gym_trainer_app/core/theme/app_colors.dart';
+import 'package:gym_trainer_app/core/error_reporter.dart';
 import 'package:gym_trainer_app/shared/widgets/gym_card.dart';
 import 'package:gym_trainer_app/features/exercises/data/exercise_api.dart';
 import 'package:gym_trainer_app/features/exercises/domain/exercise.dart';
 import 'package:gym_trainer_app/features/ai/presentation/providers/ai_provider.dart';
+import 'package:gym_trainer_app/features/dashboard/data/dashboard_api.dart';
+import 'package:gym_trainer_app/features/dashboard/domain/dashboard_stats.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -19,12 +22,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _api = ExerciseApi();
+  final _dashboardApi = DashboardApi();
   late Future<List<Exercise>> _futureExercises;
+  late Future<DashboardStats> _futureStats;
 
   @override
   void initState() {
     super.initState();
     _futureExercises = _api.fetchExercises();
+    _futureStats = _dashboardApi.fetchStats();
     // Pre-load the active weekly plan on application startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: false);
@@ -34,8 +40,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _reload() async {
     setState(() {
       _futureExercises = _api.fetchExercises();
+      _futureStats = _dashboardApi.fetchStats();
     });
     await _futureExercises;
+    await _futureStats;
     await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: false);
   }
 
@@ -179,6 +187,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildDailyProgress() {
+    return FutureBuilder<DashboardStats>(
+      future: _futureStats,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildProgressCard(completados: 0, objetivo: 4, porcentaje: 0.0, subtitulo: 'Cargando resumen...');
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          final errMsg = snapshot.error?.toString() ?? 'Sin datos';
+          return _buildErrorProgressCard(
+            context: context,
+            error: errMsg,
+          );
+        }
+
+        final stats = snapshot.data!;
+        final pct = stats.semanalPorcentaje;
+        final pctInt = (pct * 100).toInt();
+
+        String subtitulo;
+        if (stats.hoyEntrenado && stats.hoyResumen != null) {
+          subtitulo = 'Hoy: ${stats.hoyResumen}';
+          if (stats.hoyEjercicios > 0) {
+            subtitulo += ' · ${stats.hoyEjercicios} ejercicios';
+          }
+        } else if (stats.proximoDia != null && stats.proximoNombre != null) {
+          subtitulo = 'Próximo: ${stats.proximoDia} — ${stats.proximoNombre}';
+        } else {
+          subtitulo = 'Llevas $pctInt% de tu objetivo semanal';
+        }
+
+        return _buildProgressCard(
+          completados: stats.semanalCompletados,
+          objetivo: stats.semanalObjetivo,
+          porcentaje: pct,
+          subtitulo: subtitulo,
+        );
+      },
+    );
+  }
+
+  Widget _buildProgressCard({
+    required int completados,
+    required int objetivo,
+    required double porcentaje,
+    required String subtitulo,
+  }) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -215,27 +269,113 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '¡Llevas completado el 85% de tu objetivo semanal!',
+                      subtitulo,
                       style: GoogleFonts.inter(
                         color: Colors.black.withOpacity(0.75),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$completados de $objetivo días',
+                      style: GoogleFonts.inter(
+                        color: Colors.black.withOpacity(0.6),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 10,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 16),
-              const SizedBox(
+              SizedBox(
                 width: 52,
                 height: 52,
                 child: CircularProgressIndicator(
-                  value: 0.85,
+                  value: porcentaje.clamp(0.0, 1.0),
                   backgroundColor: Colors.black12,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.black),
                   strokeWidth: 6,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorProgressCard({required BuildContext context, required String error}) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF6B00), Color(0xFFFF8C00)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6B00).withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rendimiento Diario',
+                      style: GoogleFonts.outfit(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'No se pudo cargar el resumen',
+                      style: GoogleFonts.inter(
+                        color: Colors.black.withOpacity(0.75),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: Colors.black.withOpacity(0.8),
+                      ),
+                      icon: const Icon(Icons.bug_report, size: 14),
+                      label: Text(
+                        'Reportar error',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
+                      onPressed: () {
+                        ErrorReporter.report(
+                          Exception('DashboardStats error: $error'),
+                          StackTrace.current,
+                          source: 'HomeScreen._buildDailyProgress',
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Icon(Icons.error_outline, color: Colors.black54, size: 40),
             ],
           ),
         ),
