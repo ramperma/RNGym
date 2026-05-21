@@ -364,10 +364,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11),
                       ),
                       onPressed: () {
-                        ErrorReporter.report(
-                          Exception('DashboardStats error: $error'),
-                          StackTrace.current,
-                          source: 'HomeScreen._buildDailyProgress',
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => ErrorReportDialog(
+                            error: AppError(
+                              timestamp: DateTime.now(),
+                              error: 'DashboardStats error: $error',
+                              stackTrace: StackTrace.current.toString(),
+                              source: 'HomeScreen._buildDailyProgress',
+                            ),
+                          ),
                         );
                       },
                     ),

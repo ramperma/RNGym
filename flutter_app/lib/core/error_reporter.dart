@@ -33,9 +33,13 @@ class ErrorReporter {
       _errors.removeAt(0);
     }
 
-    // Mostrar dialogo si hay contexto disponible
+    // Mostrar dialogo si hay contexto disponible y con MaterialLocalizations
     if (_context != null && _context!.mounted) {
-      _showErrorDialog(_context!, appError);
+      try {
+        _showErrorDialog(_context!, appError);
+      } catch (_) {
+        // Contexto sin MaterialLocalizations — no mostrar dialogo aqui
+      }
     }
   }
 
