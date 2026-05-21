@@ -19,6 +19,7 @@ from app.repositories.rutina_repository import (
 from app.repositories.sesion_repository import (
     create_sesion,
     delete_sesion,
+    get_or_create_ejercicio_by_nombre,
     get_registros_by_sesion,
     get_sesion_by_id,
     list_sesiones,
@@ -88,6 +89,7 @@ __all__ = [
     "update_rutina",
     "create_sesion",
     "delete_sesion",
+    "get_or_create_ejercicio_by_nombre",
     "get_registros_by_sesion",
     "get_sesion_by_id",
     "list_sesiones",

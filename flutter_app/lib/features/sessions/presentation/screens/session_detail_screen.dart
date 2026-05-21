@@ -273,106 +273,73 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     final grupoMuscular = _resolveMuscleGroup(primerRegistro);
     final equipo = _resolveEquipment(primerRegistro);
 
-    // Calcular volumen total
     double volumenTotal = 0;
+    final pesos = <int>[];
+    final reps = <int>[];
     for (var r in registros) {
-      if (r.completado && r.pesoKg != null && r.repeticiones != null) {
-        volumenTotal += r.pesoKg! * r.repeticiones!;
+      if (r.completado) {
+        if (r.pesoKg != null) pesos.add(r.pesoKg!.toInt());
+        if (r.repeticiones != null) reps.add(r.repeticiones!);
+        if (r.pesoKg != null && r.repeticiones != null) {
+          volumenTotal += r.pesoKg! * r.repeticiones!;
+        }
       }
     }
 
+    final setsLabel = '${registros.length}×${reps.isEmpty ? "-" : reps.join("/")}';
+    final pesoLabel = pesos.isEmpty ? '-' : (pesos.every((p) => p == pesos.first) ? '${pesos.first}' : pesos.join('/'));
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF15151B),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.all(14),
+      child: Row(
         children: [
-          // Header del ejercicio
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nombreEjercicio,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-                      ),
-                      if (grupoMuscular != null && grupoMuscular.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.fitness_center, color: Color(0xFFFF8C00), size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              grupoMuscular,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFFFF8C00), fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (equipo != null && equipo.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(Icons.settings_suggest_rounded, color: Colors.white38, size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              equipo,
-                              style: const TextStyle(fontSize: 11, color: Colors.white38),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
+                Text(
+                  nombreEjercicio,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
                 ),
-                // Volumen total
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B00).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        '${volumenTotal.toInt()}',
-                        style: const TextStyle(color: Color(0xFFFF6B00), fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      const Text('kg·vol', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (grupoMuscular != null && grupoMuscular.isNotEmpty) ...[
+                      Icon(Icons.fitness_center, color: const Color(0xFFFF8C00), size: 11),
+                      const SizedBox(width: 3),
+                      Text(grupoMuscular, style: const TextStyle(fontSize: 11, color: Color(0xFFFF8C00))),
+                      const SizedBox(width: 8),
                     ],
-                  ),
+                    if (equipo != null && equipo.isNotEmpty) ...[
+                      Icon(Icons.settings_suggest_rounded, color: Colors.white38, size: 11),
+                      const SizedBox(width: 3),
+                      Text(equipo, style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
-          const Divider(color: Colors.white10, height: 1),
-
-          // Headers de la tabla de sets
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              children: [
-                const SizedBox(width: 32, child: Text('SET', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold))),
-                const Expanded(flex: 3, child: Center(child: Text('PESO (KG)', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
-                const Expanded(flex: 3, child: Center(child: Text('REPS', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
-                const Expanded(flex: 2, child: Center(child: Text('RPE', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
-                const SizedBox(width: 48, child: Center(child: Text('LISTO', style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold)))),
-              ],
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$pesoLabel kg  $setsLabel',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${volumenTotal.toInt()} kg',
+                style: const TextStyle(fontSize: 11, color: Color(0xFFFF6B00), fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
-
-          // Sets
-          ...registros.map((r) => _buildSetRow(r)),
-          const SizedBox(height: 8),
         ],
       ),
     );

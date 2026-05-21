@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/error_reporter.dart';
 import '../../../exercises/data/exercise_api.dart';
 import '../../../exercises/domain/exercise.dart';
 import '../../../ai/data/ai_api.dart';
@@ -119,10 +120,21 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         });
       }
     } catch (e) {
+      ErrorReporter.report(
+        Exception('Error cargando catalogo de ejercicios: $e'),
+        StackTrace.current,
+        source: 'ActiveWorkoutScreen._loadCatalogAndPlan',
+      );
       if (mounted) {
         setState(() {
           _isLoadingCatalog = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cargar el catalogo de ejercicios.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
 
@@ -359,6 +371,27 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     return out;
   }
 
+  Set<String> _nameTokens(String value) {
+    final stopwords = <String>{
+      'de', 'del', 'la', 'el', 'los', 'las', 'con', 'en', 'a', 'y',
+      'para', 'por', 'al', 'the', 'and', 'to', 'of',
+    };
+    final normalized = _normalizeExerciseName(value);
+    return normalized
+        .split(' ')
+        .where((t) => t.isNotEmpty && !stopwords.contains(t))
+        .toSet();
+  }
+
+  double _tokenSimilarity(String a, String b) {
+    final ta = _nameTokens(a);
+    final tb = _nameTokens(b);
+    if (ta.isEmpty || tb.isEmpty) return 0;
+    final intersection = ta.where(tb.contains).length;
+    final union = {...ta, ...tb}.length;
+    return union == 0 ? 0 : intersection / union;
+  }
+
   String? _getExerciseIdByName(String name) {
     if (_exerciseCatalog.isEmpty) return null;
 
@@ -377,6 +410,22 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       if (candidate.contains(target) || target.contains(candidate)) {
         return e.id;
       }
+    }
+
+    // 3) Similaridad por tokens ("press banca barra" ~ "press de banca")
+    Exercise? best;
+    var bestScore = 0.0;
+    for (final e in _exerciseCatalog) {
+      final score = _tokenSimilarity(name, e.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    }
+
+    // Umbral conservador para evitar asignaciones claramente incorrectas
+    if (best != null && bestScore >= 0.5) {
+      return best.id;
     }
 
     return null;
@@ -421,10 +470,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           
           if (completed.isNotEmpty) {
             final exerciseId = _getExerciseIdByName(ex.nombreEjercicio);
-            if (exerciseId == null) {
-              unresolvedExercises.add(ex.nombreEjercicio);
-              continue;
-            }
             
             final payload = completed.map((r) => {
               'set_numero': r.setIndex,
@@ -434,7 +479,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               'completado': true,
             }).toList();
 
-            await sessionApi.registerSets(session.id, exerciseId, payload);
+            await sessionApi.registerSets(
+              session.id,
+              exerciseId,
+              payload,
+              ejercicioNombre: ex.nombreEjercicio,
+              ejercicioGrupoMuscular: ex.grupoMuscular,
+              ejercicioEquipo: ex.machineNombre,
+            );
+
+            if (exerciseId == null) {
+              unresolvedExercises.add(ex.nombreEjercicio);
+            }
             
             totalSetsCompleted += completed.length;
             for (var r in completed) {
@@ -457,6 +513,20 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       if (mounted) {
         _showSuccessDialog(totalSetsCompleted, totalTonnage);
         if (unresolvedExercises.isNotEmpty) {
+          final diagnostics = StringBuffer()
+            ..writeln('No se pudieron vincular ejercicios al guardar sesion.')
+            ..writeln('Sesion: ${session.id}')
+            ..writeln('Dia: ${_selectedDayPlan?.nombreDia ?? '-'}')
+            ..writeln('Catalogo size: ${_exerciseCatalog.length}')
+            ..writeln('No vinculados: ${unresolvedExercises.join(', ')}')
+            ..writeln('Catalogo (primeros 30): ${_exerciseCatalog.take(30).map((e) => e.name).join(' | ')}');
+
+          ErrorReporter.report(
+            Exception(diagnostics.toString()),
+            StackTrace.current,
+            source: 'ActiveWorkoutScreen._finishWorkout.exerciseLink',
+          );
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: Colors.orange,
@@ -468,6 +538,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         }
       }
     } catch (e) {
+      ErrorReporter.report(
+        Exception('Error guardando sesion: $e'),
+        StackTrace.current,
+        source: 'ActiveWorkoutScreen._finishWorkout',
+      );
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(

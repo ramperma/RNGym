@@ -40,9 +40,19 @@ class SessionApi {
     await _client.delete('/sessions/$id');
   }
 
-  Future<void> registerSets(String sesionId, String ejercicioId, List<Map<String, dynamic>> registros) async {
+  Future<void> registerSets(
+    String sesionId,
+    String? ejercicioId,
+    List<Map<String, dynamic>> registros, {
+    String? ejercicioNombre,
+    String? ejercicioGrupoMuscular,
+    String? ejercicioEquipo,
+  }) async {
     await _client.post('/sessions/$sesionId/exercises', data: {
       'ejercicio_id': ejercicioId,
+      'ejercicio_nombre': ejercicioNombre,
+      'ejercicio_grupo_muscular': ejercicioGrupoMuscular,
+      'ejercicio_equipo': ejercicioEquipo,
       'registros': registros,
     });
   }

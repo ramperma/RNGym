@@ -5,6 +5,7 @@ from app.db import get_db_connection, db_connection_context
 from app.repositories import (
     create_sesion,
     delete_sesion,
+    get_or_create_ejercicio_by_nombre,
     get_registros_by_sesion,
     get_sesion_by_id,
     list_sesiones,
@@ -151,11 +152,30 @@ def register_session_exercises(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "SESSION_NOT_FOUND", "message": "Sesión no encontrada"},
             )
-        created = registrar_sets(conn, sesion_id, current_user["id"], payload.ejercicio_id, registros_data)
+        ejercicio_id = payload.ejercicio_id
+        if not ejercicio_id:
+            if not payload.ejercicio_nombre:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "code": "EXERCISE_ID_OR_NAME_REQUIRED",
+                        "message": "Debes enviar ejercicio_id o ejercicio_nombre",
+                    },
+                )
+
+            ejercicio = get_or_create_ejercicio_by_nombre(
+                conn,
+                nombre=payload.ejercicio_nombre,
+                grupo_muscular=payload.ejercicio_grupo_muscular,
+                equipo=payload.ejercicio_equipo,
+            )
+            ejercicio_id = ejercicio.id
+
+        created = registrar_sets(conn, sesion_id, current_user["id"], ejercicio_id, registros_data)
         return {
             "ok": True,
             "sesion_id": sesion_id,
-            "ejercicio_id": payload.ejercicio_id,
+            "ejercicio_id": ejercicio_id,
             "created_sets": len(created),
             "registros": [
                 {

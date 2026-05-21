@@ -193,23 +193,16 @@ class _ErrorReporterWrapperState extends State<ErrorReporterWrapper> {
   @override
   void initState() {
     super.initState();
-    ErrorReporter.attachContext(context);
-  }
-
-  @override
-  void didUpdateWidget(covariant ErrorReporterWrapper oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    ErrorReporter.attachContext(context);
-  }
-
-  @override
-  void dispose() {
     ErrorReporter.detachContext();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    return Builder(
+      builder: (ctx) {
+        ErrorReporter.attachContext(ctx);
+        return widget.child;
+      },
+    );
   }
 }

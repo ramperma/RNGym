@@ -32,6 +32,8 @@ def list_sesiones(
     query = select(SesionEntreno).where(SesionEntreno.usuario_id == usuario_id)
     if estado:
         query = query.where(SesionEntreno.estado == estado)
+    else:
+        query = query.where(SesionEntreno.estado != 'cancelada')
     result = conn.execute(
         query.order_by(SesionEntreno.fecha_inicio.desc()).offset(skip).limit(limit)
     )
@@ -56,9 +58,8 @@ def update_sesion(conn, sesion_id: str, usuario_id: str, data: dict) -> SesionEn
 
 def delete_sesion(conn, sesion_id: str, usuario_id: str) -> bool:
     result = conn.execute(
-        update(SesionEntreno)
+        delete(SesionEntreno)
         .where(SesionEntreno.id == sesion_id, SesionEntreno.usuario_id == usuario_id)
-        .values(estado="cancelada")
     )
     conn.commit()
     return result.rowcount > 0
@@ -87,6 +88,41 @@ def registrar_sets(conn, sesion_id: str, usuario_id: str, ejercicio_id: str, reg
     conn.commit()
     for r in created:
         conn.refresh(r)
+    return created
+
+
+def get_or_create_ejercicio_by_nombre(
+    conn,
+    *,
+    nombre: str,
+    grupo_muscular: str | None = None,
+    equipo: str | None = None,
+) -> Ejercicio:
+    normalized = " ".join((nombre or "").strip().lower().split())
+
+    existing = conn.execute(
+        select(Ejercicio).where(Ejercicio.nombre_normalizado == normalized)
+    ).scalar_one_or_none()
+    if existing:
+        return existing
+
+    fallback_group = (grupo_muscular or "general").strip() or "general"
+    fallback_equipment = (equipo or "sin equipo").strip() or "sin equipo"
+
+    created = Ejercicio(
+        nombre=nombre.strip(),
+        nombre_normalizado=normalized,
+        descripcion="Ejercicio creado automaticamente desde registro de sesion.",
+        grupo_muscular=fallback_group,
+        tipo_ejercicio="fuerza",
+        equipo_necesario=fallback_equipment,
+        instrucciones=["Revisar tecnica antes de aumentar carga."],
+        musculos_implicados=[fallback_group],
+        es_publico=True,
+    )
+    conn.add(created)
+    conn.commit()
+    conn.refresh(created)
     return created
 
 

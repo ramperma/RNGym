@@ -75,5 +75,8 @@ class SesionEntrenoListResponse(BaseModel):
 
 
 class RegistrarSetsRequest(BaseModel):
-    ejercicio_id: str
+    ejercicio_id: str | None = None
+    ejercicio_nombre: str | None = None
+    ejercicio_grupo_muscular: str | None = None
+    ejercicio_equipo: str | None = None
     registros: list[SesionEjercicioRegistroCreate]
