@@ -130,3 +130,10 @@ class AIWeeklyPlanResponse(BaseModel):
 class AIModifyPlanRequest(BaseModel):
     plan_id: str
     instrucciones: str
+
+
+class AddExercisesToPlanRequest(BaseModel):
+    plan_id: str
+    dia_semana: int = Field(..., ge=0, le=6)
+    bloque_tipo: str = Field(..., description="calentamiento | principal | enfriamiento")
+    ejercicios_ids: list[str] = Field(..., min_length=1)

@@ -15,6 +15,7 @@ import '../../features/daily_records/presentation/screens/daily_records_screen.d
 import '../../features/ai/presentation/screens/ai_recommendation_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/screens/server_config_screen.dart';
+import '../../features/exercises/presentation/screens/user_exercises_screen.dart';
 
 class RouterNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
@@ -78,6 +79,7 @@ final routerProvider = Provider((ref) {
       ),
       GoRoute(path: '/daily-records', builder: (context, state) => const SessionListScreen()),
       GoRoute(path: '/ai', builder: (context, state) => const AIRecommendationScreen()),
+      GoRoute(path: '/user-exercises', builder: (context, state) => const UserExercisesScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     ],
   );

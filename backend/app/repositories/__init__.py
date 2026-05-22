@@ -68,6 +68,13 @@ from app.repositories.workout_session_repository import (
     get_workout_session,
     list_workout_sessions,
 )
+from app.repositories.ejercicio_usuario_repository import (
+    create_ejercicio_usuario,
+    delete_ejercicio_usuario,
+    get_ejercicio_usuario_by_id,
+    list_ejercicios_usuario,
+    update_ejercicio_usuario,
+)
 
 __all__ = [
     "list_exercises",
@@ -125,4 +132,9 @@ __all__ = [
     "get_admin_user",
     "update_admin_user_token_limit",
     "update_admin_user_status",
+    "create_ejercicio_usuario",
+    "delete_ejercicio_usuario",
+    "get_ejercicio_usuario_by_id",
+    "list_ejercicios_usuario",
+    "update_ejercicio_usuario",
 ]

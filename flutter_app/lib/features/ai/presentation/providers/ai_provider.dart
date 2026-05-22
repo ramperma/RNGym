@@ -169,6 +169,27 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  Future<void> addExercisesToPlan({
+    required String planId,
+    required int diaSemana,
+    required String bloqueTipo,
+    required List<String> ejerciciosIds,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final updatedPlan = await _api.addExercisesToPlan(
+        planId: planId,
+        diaSemana: diaSemana,
+        bloqueTipo: bloqueTipo,
+        ejerciciosIds: ejerciciosIds,
+      );
+      final updatedPlanes = state.planes.map((p) => p.id == planId ? updatedPlan : p).toList();
+      state = state.copyWith(isLoading: false, plan: updatedPlan, planes: updatedPlanes);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
 }
 
 final weeklyPlanProvider = StateNotifierProvider<WeeklyPlanNotifier, WeeklyPlanState>((ref) {

@@ -7,6 +7,7 @@ from app.models.registro_diario import RegistroDiario
 from app.models.log_ia import LogIA
 from app.models.maquina_gym import MaquinaGym
 from app.models.plan_semanal import PlanSemanal
+from app.models.ejercicio_usuario import EjercicioUsuario
 
 __all__ = [
     "Usuario",
@@ -20,4 +21,5 @@ __all__ = [
     "LogIA",
     "MaquinaGym",
     "PlanSemanal",
+    "EjercicioUsuario",
 ]

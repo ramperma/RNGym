@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../weekly_plan/domain/plan_semanal.dart';
+import '../../../exercises/presentation/providers/user_exercises_provider.dart';
 import '../providers/ai_provider.dart';
 
 class AIRecommendationScreen extends ConsumerStatefulWidget {
@@ -783,7 +784,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
               if (i == 0) {
                 return _buildAdaptationCard(plan);
               }
-              return _buildDayCard(dias[i - 1]);
+               return _buildDayCard(dias[i - 1], plan.id);
             },
           ),
         ),
@@ -928,7 +929,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     );
   }
 
-  Widget _buildDayCard(PlanDia dia) {
+  Widget _buildDayCard(PlanDia dia, String planId) {
     final color = dia.isWorkout
         ? const Color(0xFF00E5FF)
         : dia.isActiveRecovery
@@ -984,6 +985,12 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       '${dia.tiempoTotalEstimadoMinutos} min',
                       style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
                     ),
+                  ),
+                if (dia.isWorkout)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_rounded, color: Color(0xFFFF6B00), size: 22),
+                    tooltip: 'Añadir ejercicios personalizados',
+                    onPressed: () => _showAddExerciseToDaySheet(dia, planId),
                   ),
               ],
             ),
@@ -1681,6 +1688,226 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showAddExerciseToDaySheet(PlanDia dia, String planId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddExerciseToDaySheet(dia: dia, planId: planId),
+    );
+  }
+}
+
+// ─── Add Exercise to Day Bottom Sheet ───────────────────────────────────────
+
+class _AddExerciseToDaySheet extends ConsumerStatefulWidget {
+  final PlanDia dia;
+  final String planId;
+
+  const _AddExerciseToDaySheet({required this.dia, required this.planId});
+
+  @override
+  ConsumerState<_AddExerciseToDaySheet> createState() => _AddExerciseToDaySheetState();
+}
+
+class _AddExerciseToDaySheetState extends ConsumerState<_AddExerciseToDaySheet> {
+  final Set<String> _selectedIds = {};
+  String _bloqueTipo = 'principal';
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(userExercisesProvider.notifier).loadExercises();
+    });
+  }
+
+  Future<void> _addExercises() async {
+    if (_selectedIds.isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(weeklyPlanProvider.notifier).addExercisesToPlan(
+        planId: widget.planId,
+        diaSemana: widget.dia.diaSemana,
+        bloqueTipo: _bloqueTipo,
+        ejerciciosIds: _selectedIds.toList(),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(userExercisesProvider);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: const BoxDecoration(
+        color: Color(0xFF15151B),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Añadir ejercicios a ${widget.dia.nombreDia}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_selectedIds.length} seleccionados',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFFFF6B00)),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          // Block selector
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: Row(
+              children: [
+                const Text('Bloque:', style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'calentamiento', label: Text('Calentamiento', style: TextStyle(fontSize: 11))),
+                      ButtonSegment(value: 'principal', label: Text('Principal', style: TextStyle(fontSize: 11))),
+                      ButtonSegment(value: 'enfriamiento', label: Text('Estiramiento', style: TextStyle(fontSize: 11))),
+                    ],
+                    selected: {_bloqueTipo},
+                    onSelectionChanged: (s) => setState(() => _bloqueTipo = s.first),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return const Color(0xFFFF6B00);
+                        return const Color(0xFF1C1C24);
+                      }),
+                      foregroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return Colors.black;
+                        return Colors.white70;
+                      }),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          // Exercise list
+          Expanded(
+            child: state.isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B00)))
+                : state.exercises.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.fitness_center_rounded, size: 48, color: Colors.white24),
+                            SizedBox(height: 12),
+                            Text('No tienes ejercicios personalizados', style: TextStyle(color: Colors.white54)),
+                            SizedBox(height: 8),
+                            Text('Crea ejercicios desde Ejercicios Personalizados', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: state.exercises.length,
+                        itemBuilder: (_, i) {
+                          final e = state.exercises[i];
+                          final isSelected = _selectedIds.contains(e.id);
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: (_) {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedIds.remove(e.id);
+                                } else {
+                                  _selectedIds.add(e.id);
+                                }
+                              });
+                            },
+                            activeColor: const Color(0xFFFF6B00),
+                            checkColor: Colors.black,
+                            title: Text(e.nombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                            subtitle: Text(
+                              '${e.grupoMuscular ?? 'Sin grupo'} • ${e.series}x${e.repeticiones ?? '-'}${e.machineNombre != null ? ' • ${e.machineNombre}' : ''}',
+                              style: const TextStyle(fontSize: 12, color: Colors.white54),
+                            ),
+                            secondary: e.machineFotoPath != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(e.machineFotoPath!.replaceAll('backend/', '')),
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.fitness_center_rounded, color: Colors.white24),
+                                    ),
+                                  )
+                                : const Icon(Icons.fitness_center_rounded, color: Colors.white24),
+                          );
+                        },
+                      ),
+          ),
+          // Bottom button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0F0F12),
+              border: Border(top: BorderSide(color: Colors.white10)),
+            ),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B00),
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _selectedIds.isEmpty || _isSaving ? null : _addExercises,
+              child: _isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                  : Text('Añadir ${_selectedIds.length} ejercicio(s)', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       ),
     );
   }

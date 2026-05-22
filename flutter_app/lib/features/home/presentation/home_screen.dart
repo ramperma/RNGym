@@ -425,6 +425,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           color: const Color(0xFF00E5FF),
           onTap: () => context.push('/health-profile'),
         ),
+        _buildDashboardTile(
+          icon: Icons.fitness_center_rounded,
+          label: 'Ejercicios Personalizados',
+          color: const Color(0xFFFF6B00),
+          onTap: () => context.push('/user-exercises'),
+        ),
       ],
     );
   }

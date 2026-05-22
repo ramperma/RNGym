@@ -13,6 +13,7 @@ import '../../../../core/error_reporter.dart';
 import '../../../exercises/data/exercise_api.dart';
 import '../../../exercises/domain/exercise.dart';
 import '../../../ai/data/ai_api.dart';
+import '../../../ai/data/ai_explanation_cache.dart';
 import '../../../ai/presentation/providers/ai_provider.dart';
 import '../../../weekly_plan/domain/plan_semanal.dart';
 import '../providers/sessions_provider.dart';
@@ -1201,6 +1202,18 @@ class _ChatMessage {
   final String text;
   final File? image;
   const _ChatMessage({required this.role, required this.text, this.image});
+
+  Map<String, dynamic> toMap() => {
+        'role': role,
+        'text': text,
+      };
+
+  factory _ChatMessage.fromMap(Map<String, dynamic> map) {
+    return _ChatMessage(
+      role: map['role'] as String,
+      text: map['text'] as String,
+    );
+  }
 }
 
 class _ExerciseAIHelpSheet extends StatefulWidget {
@@ -1217,13 +1230,14 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
   final _textCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final List<_ChatMessage> _messages = [];
+  final _cache = AIExplanationCache();
   File? _selectedImage;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchExplanation();
+    _loadCachedOrFetch();
   }
 
   @override
@@ -1231,6 +1245,25 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCachedOrFetch() async {
+    final cached = await _cache.getMessages(
+      nombreEjercicio: widget.ejercicio.nombreEjercicio,
+      grupoMuscular: widget.ejercicio.grupoMuscular,
+      machineNombre: widget.ejercicio.machineNombre,
+      notasPlan: widget.ejercicio.notas,
+    );
+    if (cached != null && cached.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _messages.addAll(cached.map((m) => _ChatMessage.fromMap(m)));
+        });
+        _scrollToBottom();
+      }
+      return;
+    }
+    await _fetchExplanation();
   }
 
   Future<void> _fetchExplanation() async {
@@ -1247,6 +1280,7 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
           _messages.add(_ChatMessage(role: 'ai', text: response));
           _isLoading = false;
         });
+        await _saveMessagesToCache();
         _scrollToBottom();
       }
     } catch (e) {
@@ -1257,6 +1291,30 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
         });
       }
     }
+  }
+
+  Future<void> _refreshCache() async {
+    await _cache.clearMessages(
+      nombreEjercicio: widget.ejercicio.nombreEjercicio,
+      grupoMuscular: widget.ejercicio.grupoMuscular,
+      machineNombre: widget.ejercicio.machineNombre,
+      notasPlan: widget.ejercicio.notas,
+    );
+    setState(() {
+      _messages.clear();
+    });
+    await _fetchExplanation();
+  }
+
+  Future<void> _saveMessagesToCache() async {
+    final maps = _messages.map((m) => m.toMap()).toList();
+    await _cache.saveMessages(
+      nombreEjercicio: widget.ejercicio.nombreEjercicio,
+      grupoMuscular: widget.ejercicio.grupoMuscular,
+      machineNombre: widget.ejercicio.machineNombre,
+      notasPlan: widget.ejercicio.notas,
+      messages: maps,
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -1290,6 +1348,7 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
           _messages.add(_ChatMessage(role: 'ai', text: response));
           _isLoading = false;
         });
+        await _saveMessagesToCache();
         _scrollToBottom();
       }
     } catch (e) {
@@ -1393,6 +1452,11 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
+                  tooltip: 'Nueva explicación',
+                  onPressed: _isLoading ? null : _refreshCache,
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: Colors.white54),

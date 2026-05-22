@@ -1226,6 +1226,87 @@ async def activate_plan_endpoint(
     return PlanSemanalResponse.model_validate(updated_plan)
 
 
+@router.post("/plans/{plan_id}/add-exercises", response_model=PlanSemanalResponse)
+async def add_exercises_to_plan(
+    plan_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+) -> PlanSemanalResponse:
+    from app.repositories import get_plan_by_id, update_plan_semanal, get_ejercicio_usuario_by_id
+    from app.db import db_connection_context
+
+    dia_semana = payload.get("dia_semana")
+    bloque_tipo = payload.get("bloque_tipo")
+    ejercicios_ids = payload.get("ejercicios_ids", [])
+
+    if dia_semana is None or not bloque_tipo or not ejercicios_ids:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Se requieren dia_semana, bloque_tipo y ejercicios_ids",
+        )
+
+    with db_connection_context() as conn:
+        plan = get_plan_by_id(conn, plan_id, current_user["id"])
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "PLAN_NOT_FOUND", "message": "Plan no encontrado"},
+            )
+
+        plan_json = plan.plan_json
+        dias = plan_json.get("dias", [])
+        target_dia = None
+        for d in dias:
+            if d.get("dia_semana") == dia_semana:
+                target_dia = d
+                break
+
+        if not target_dia:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Día no encontrado en el plan",
+            )
+
+        bloques = target_dia.get("bloques", [])
+        target_bloque = None
+        for b in bloques:
+            if b.get("tipo") == bloque_tipo:
+                target_bloque = b
+                break
+
+        if not target_bloque:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Bloque no encontrado en el día",
+            )
+
+        for eid in ejercicios_ids:
+            ej = get_ejercicio_usuario_by_id(conn, eid, current_user["id"])
+            if not ej:
+                continue
+            target_bloque["ejercicios"].append({
+                "nombre_ejercicio": ej.nombre,
+                "grupo_muscular": ej.grupo_muscular,
+                "series": ej.series,
+                "repeticiones": ej.repeticiones or "10-12",
+                "descanso_segundos": ej.descanso_segundos,
+                "rir_o_rpe": ej.rir_o_pe,
+                "notas": ej.notas,
+                "machine_id": None,
+                "machine_nombre": ej.machine_nombre,
+                "machine_foto_url": ej.machine_foto_path,
+            })
+
+        updated = update_plan_semanal(conn, plan_id, current_user["id"], {"plan_json": plan_json})
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error actualizando el plan",
+            )
+        updated_plan = get_plan_by_id(conn, plan_id, current_user["id"])
+    return PlanSemanalResponse.model_validate(updated_plan)
+
+
 def _build_exercise_help_messages(
     nombre_ejercicio: str,
     grupo_muscular: str | None,
