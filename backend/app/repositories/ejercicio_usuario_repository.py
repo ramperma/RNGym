@@ -56,15 +56,19 @@ def get_ejercicio_usuario_by_id(conn: Connection, ejercicio_id: str, usuario_id:
 def update_ejercicio_usuario(
     conn: Connection, ejercicio_id: str, usuario_id: str, data: dict
 ) -> EjercicioUsuario | None:
-    ejercicio = get_ejercicio_usuario_by_id(conn, ejercicio_id, usuario_id)
-    if not ejercicio:
-        return None
-    for key, value in data.items():
-        if value is not None and hasattr(ejercicio, key):
-            setattr(ejercicio, key, value)
+    stmt = (
+        EjercicioUsuario.__table__.update()
+        .where(
+            EjercicioUsuario.id == ejercicio_id,
+            EjercicioUsuario.usuario_id == usuario_id,
+        )
+        .values(**data)
+    )
+    result = conn.execute(stmt)
     conn.commit()
-    conn.refresh(ejercicio)
-    return ejercicio
+    if result.rowcount == 0:
+        return None
+    return get_ejercicio_usuario_by_id(conn, ejercicio_id, usuario_id)
 
 
 def delete_ejercicio_usuario(conn: Connection, ejercicio_id: str, usuario_id: str) -> bool:

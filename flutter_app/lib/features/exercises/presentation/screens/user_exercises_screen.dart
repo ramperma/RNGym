@@ -131,11 +131,11 @@ class _UserExercisesScreenState extends ConsumerState<UserExercisesScreen> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: e.machineFotoPath != null
+        leading: e.imageUrl != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(e.machineFotoPath!.replaceAll('backend/', '')),
+                child: Image.network(
+                  e.imageUrl!,
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
@@ -262,9 +262,6 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       _descanso = e.descansoSegundos;
       _rirCtrl.text = e.rirOPe ?? '';
       _notasCtrl.text = e.notas ?? '';
-      if (e.machineFotoPath != null) {
-        _photo = File(e.machineFotoPath!.replaceAll('backend/', ''));
-      }
     }
   }
 
@@ -294,11 +291,12 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       final notifier = ProviderScope.containerOf(context).read(userExercisesProvider.notifier);
 
       String? fotoPath;
-      if (_photo != null && !(_photo!.path.contains('backend/storage'))) {
-        // Upload new photo
+      if (_photo != null) {
+        // Subir foto nueva seleccionada del dispositivo
         final api = ProviderScope.containerOf(context).read(userExerciseApiProvider);
         fotoPath = await api.uploadPhoto(_photo!);
       } else if (widget.exercise?.machineFotoPath != null) {
+        // Mantener foto existente
         fotoPath = widget.exercise!.machineFotoPath;
       }
 
@@ -393,14 +391,16 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                               borderRadius: BorderRadius.circular(16),
                               child: Image.file(_photo!, fit: BoxFit.cover),
                             )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFFFF6B00), size: 36),
-                                const SizedBox(height: 8),
-                                Text('Añadir foto de máquina (opcional)', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
-                              ],
-                            ),
+                          : widget.exercise?.imageUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.network(
+                                    widget.exercise!.imageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
+                                  ),
+                                )
+                              : _buildPhotoPlaceholder(),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -534,6 +534,17 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPhotoPlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFFFF6B00), size: 36),
+        const SizedBox(height: 8),
+        Text('Añadir foto de máquina (opcional)', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
+      ],
     );
   }
 }

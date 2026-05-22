@@ -135,6 +135,20 @@ class AIApi {
     return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<PlanSemanal> removeExerciseFromPlan({
+    required String planId,
+    required int diaSemana,
+    required String bloqueTipo,
+    required String nombreEjercicio,
+  }) async {
+    final response = await _client.post('/ai/plans/$planId/remove-exercise', data: {
+      'dia_semana': diaSemana,
+      'bloque_tipo': bloqueTipo,
+      'nombre_ejercicio': nombreEjercicio,
+    });
+    return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<String> exerciseHelp({
     required String nombreEjercicio,
     String? grupoMuscular,

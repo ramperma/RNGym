@@ -7,7 +7,8 @@ from app.db import db_connection_context
 
 router = APIRouter(prefix="/api/v1", tags=["exercises"])
 
-STORAGE_DIR = Path("backend/storage/exercises")
+# Ruta absoluta al directorio de storage (resuelve desde este archivo: backend/app/api/v1/)
+STORAGE_DIR = Path(__file__).resolve().parents[3] / "storage" / "exercises"
 
 
 class EjercicioUsuarioCreate(BaseModel):
@@ -93,6 +94,16 @@ async def update_user_exercise(
         if not ejercicio:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ejercicio no encontrado")
         data = payload.model_dump(exclude_unset=True)
+        # Borrar foto anterior si se está actualizando con una nueva
+        if "machine_foto_path" in data and data["machine_foto_path"] != ejercicio.machine_foto_path:
+            if ejercicio.machine_foto_path:
+                try:
+                    old_photo = Path(ejercicio.machine_foto_path)
+                    if not old_photo.is_absolute():
+                        old_photo = STORAGE_DIR.parent.parent / old_photo
+                    old_photo.unlink(missing_ok=True)
+                except OSError:
+                    pass
         updated = update_ejercicio_usuario(conn, exercise_id, current_user["id"], data)
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ejercicio no encontrado")
@@ -111,7 +122,10 @@ async def delete_user_exercise(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ejercicio no encontrado")
         if ejercicio.machine_foto_path:
             try:
-                Path(ejercicio.machine_foto_path).unlink(missing_ok=True)
+                photo_path = Path(ejercicio.machine_foto_path)
+                if not photo_path.is_absolute():
+                    photo_path = STORAGE_DIR.parent.parent / photo_path
+                photo_path.unlink(missing_ok=True)
             except OSError:
                 pass
         delete_ejercicio_usuario(conn, exercise_id, current_user["id"])
@@ -123,7 +137,8 @@ async def upload_user_exercise_photo(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    if file.size and file.size > 10 * 1024 * 1024:
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Archivo demasiado grande (max 10MB)")
     ext = Path(file.filename or "img").suffix.lower()
     if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
@@ -133,6 +148,8 @@ async def upload_user_exercise_photo(
     filename = f"{uuid.uuid4().hex}{ext}"
     file_path = user_dir / filename
     with file_path.open("wb") as f:
-        content = await file.read()
         f.write(content)
-    return {"foto_path": str(file_path)}
+    # Devolver ruta relativa a la raíz del proyecto para que sea servible
+    project_root = Path(__file__).resolve().parents[3]
+    relative_path = file_path.relative_to(project_root)
+    return {"foto_path": str(relative_path)}

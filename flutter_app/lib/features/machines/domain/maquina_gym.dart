@@ -1,3 +1,5 @@
+import '../../../core/env.dart';
+
 class MaquinaGym {
   final String id;
   final String usuarioId;
@@ -7,6 +9,13 @@ class MaquinaGym {
   final String? grupoMuscular;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  String? get imageUrl {
+    if (fotoPath == null) return null;
+    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = fotoPath!.replaceAll('backend/', '');
+    return '$baseUrl/$cleanPath';
+  }
 
   MaquinaGym({
     required this.id,

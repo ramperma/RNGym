@@ -36,6 +36,7 @@ class UserExerciseApi {
       'file': await MultipartFile.fromFile(
         file.path,
         filename: file.path.split('/').last,
+        contentType: DioMediaType.parse('image/${file.path.split('.').last}'),
       ),
     });
     final response = await _client.uploadFile('/user-exercises/upload-photo', formData);

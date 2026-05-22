@@ -1031,7 +1031,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                   ],
                 ),
               ),
-              ...bloque.ejercicios.map((e) => _buildExerciseItem(e)),
+              ...bloque.ejercicios.map((e) => _buildExerciseItem(e, planId, dia.diaSemana, bloque.tipo)),
             ]
           ]),
           const SizedBox(height: 12),
@@ -1040,12 +1040,26 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     );
   }
 
-  Widget _buildExerciseItem(PlanDiaEjercicio e) {
+  Widget _buildExerciseItem(PlanDiaEjercicio e, String planId, int diaSemana, String bloqueTipo) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (e.imageUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                  e.imageUrl!,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: Icon(Icons.chevron_right_rounded, size: 16, color: const Color(0xFFFF6B00).withOpacity(0.8)),
@@ -1100,9 +1114,47 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
               ],
             ),
           ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline_rounded, color: Color(0xFFFF3366), size: 20),
+            tooltip: 'Eliminar ejercicio',
+            onPressed: () => _confirmRemoveExercise(e, planId, diaSemana, bloqueTipo),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmRemoveExercise(PlanDiaEjercicio e, String planId, int diaSemana, String bloqueTipo) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E26),
+        title: const Text('Eliminar ejercicio', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: Text(
+          '¿Eliminar "${e.nombreEjercicio}" del plan?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF3366))),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(weeklyPlanProvider.notifier).removeExerciseFromPlan(
+        planId: planId,
+        diaSemana: diaSemana,
+        bloqueTipo: bloqueTipo,
+        nombreEjercicio: e.nombreEjercicio,
+      );
+    }
   }
 
   Widget _buildModifyChatDock(String planId) {
@@ -1277,11 +1329,11 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                                         border: Border.all(color: Colors.white.withOpacity(0.04)),
                                       ),
                                       child: ListTile(
-                                        leading: m.fotoPath != null
+                                        leading: m.imageUrl != null
                                             ? ClipRRect(
                                                 borderRadius: BorderRadius.circular(8),
-                                                child: Image.file(
-                                                  File(m.fotoPath!.replaceAll('backend/', '')),
+                                                child: Image.network(
+                                                  m.imageUrl!,
                                                   width: 48,
                                                   height: 48,
                                                   fit: BoxFit.cover,
@@ -1872,11 +1924,11 @@ class _AddExerciseToDaySheetState extends ConsumerState<_AddExerciseToDaySheet> 
                               '${e.grupoMuscular ?? 'Sin grupo'} • ${e.series}x${e.repeticiones ?? '-'}${e.machineNombre != null ? ' • ${e.machineNombre}' : ''}',
                               style: const TextStyle(fontSize: 12, color: Colors.white54),
                             ),
-                            secondary: e.machineFotoPath != null
+                            secondary: e.imageUrl != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(e.machineFotoPath!.replaceAll('backend/', '')),
+                                    child: Image.network(
+                                      e.imageUrl!,
                                       width: 48,
                                       height: 48,
                                       fit: BoxFit.cover,

@@ -1,3 +1,5 @@
+import '../../../core/env.dart';
+
 class PlanDiaEjercicio {
   final String nombreEjercicio;
   final String? grupoMuscular;
@@ -9,6 +11,13 @@ class PlanDiaEjercicio {
   final String? machineId;
   final String? machineNombre;
   final String? machineFotoUrl;
+
+  String? get imageUrl {
+    if (machineFotoUrl == null) return null;
+    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = machineFotoUrl!.replaceAll('backend/', '');
+    return '$baseUrl/$cleanPath';
+  }
 
   PlanDiaEjercicio({
     required this.nombreEjercicio,

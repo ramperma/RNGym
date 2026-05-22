@@ -1,3 +1,5 @@
+import '../../../core/env.dart';
+
 class UserExercise {
   final String id;
   final String nombre;
@@ -9,6 +11,13 @@ class UserExercise {
   final int descansoSegundos;
   final String? rirOPe;
   final String? notas;
+
+  String? get imageUrl {
+    if (machineFotoPath == null) return null;
+    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = machineFotoPath!.replaceAll('backend/', '');
+    return '$baseUrl/$cleanPath';
+  }
 
   UserExercise({
     required this.id,

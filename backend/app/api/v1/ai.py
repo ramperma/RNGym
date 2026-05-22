@@ -1159,6 +1159,22 @@ async def delete_machine(machine_id: str, current_user: dict = Depends(get_curre
     return {"ok": True}
 
 
+def _enrich_plan_json(conn, plan_json: dict, user_id: str) -> None:
+    from app.repositories import list_ejercicios_usuario
+    ejercicios = list_ejercicios_usuario(conn, user_id)
+    foto_map = {}
+    for ex in ejercicios:
+        path = ex.machine_foto_path if hasattr(ex, 'machine_foto_path') else None
+        if path:
+            foto_map[ex.nombre.lower()] = path
+    for dia in plan_json.get("dias", []):
+        for bloque in dia.get("bloques", []):
+            for ejercicio in bloque.get("ejercicios", []):
+                nombre = ejercicio.get("nombre_ejercicio", "").lower()
+                if nombre in foto_map:
+                    ejercicio["machine_foto_url"] = foto_map[nombre]
+
+
 @router.get("/plans", response_model=list[PlanSemanalResponse])
 async def list_plans(
     skip: int = 0,
@@ -1171,6 +1187,8 @@ async def list_plans(
 
     with db_connection_context() as conn:
         planes = list_planes_semanales(conn, current_user["id"], skip, limit, solo_activos)
+        for plan in planes:
+            _enrich_plan_json(conn, plan.plan_json, current_user["id"])
     return [PlanSemanalResponse.model_validate(p) for p in planes]
 
 
@@ -1186,6 +1204,7 @@ async def get_plan(plan_id: str, current_user: dict = Depends(get_current_user))
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "PLAN_NOT_FOUND", "message": "Plan no encontrado"},
             )
+        _enrich_plan_json(conn, plan.plan_json, current_user["id"])
     return PlanSemanalResponse.model_validate(plan)
 
 
@@ -1296,6 +1315,75 @@ async def add_exercises_to_plan(
                 "machine_nombre": ej.machine_nombre,
                 "machine_foto_url": ej.machine_foto_path,
             })
+
+        updated = update_plan_semanal(conn, plan_id, current_user["id"], {"plan_json": plan_json})
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error actualizando el plan",
+            )
+        updated_plan = get_plan_by_id(conn, plan_id, current_user["id"])
+    return PlanSemanalResponse.model_validate(updated_plan)
+
+
+@router.post("/plans/{plan_id}/remove-exercise", response_model=PlanSemanalResponse)
+async def remove_exercise_from_plan(
+    plan_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+) -> PlanSemanalResponse:
+    from app.repositories import get_plan_by_id, update_plan_semanal
+    from app.db import db_connection_context
+
+    dia_semana = payload.get("dia_semana")
+    bloque_tipo = payload.get("bloque_tipo")
+    nombre_ejercicio = payload.get("nombre_ejercicio")
+
+    if dia_semana is None or not bloque_tipo or not nombre_ejercicio:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Se requieren dia_semana, bloque_tipo y nombre_ejercicio",
+        )
+
+    with db_connection_context() as conn:
+        plan = get_plan_by_id(conn, plan_id, current_user["id"])
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "PLAN_NOT_FOUND", "message": "Plan no encontrado"},
+            )
+
+        plan_json = plan.plan_json
+        dias = plan_json.get("dias", [])
+        target_dia = None
+        for d in dias:
+            if d.get("dia_semana") == dia_semana:
+                target_dia = d
+                break
+
+        if not target_dia:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Día no encontrado en el plan",
+            )
+
+        bloques = target_dia.get("bloques", [])
+        target_bloque = None
+        for b in bloques:
+            if b.get("tipo") == bloque_tipo:
+                target_bloque = b
+                break
+
+        if not target_bloque:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Bloque no encontrado en el día",
+            )
+
+        ejercicios = target_bloque.get("ejercicios", [])
+        target_bloque["ejercicios"] = [
+            e for e in ejercicios if e.get("nombre_ejercicio") != nombre_ejercicio
+        ]
 
         updated = update_plan_semanal(conn, plan_id, current_user["id"], {"plan_json": plan_json})
         if not updated:

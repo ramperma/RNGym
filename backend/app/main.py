@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.health_profile import router as health_profile_router
@@ -50,6 +51,11 @@ app.include_router(admin_router)
 app.include_router(me_router)
 app.include_router(dashboard_router)
 app.include_router(exercises_router)
+
+# Montar directorio de imágenes de ejercicios para servir estáticamente
+_exercises_storage_dir = Path(__file__).resolve().parent.parent / "storage" / "exercises"
+_exercises_storage_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/storage/exercises", StaticFiles(directory=_exercises_storage_dir), name="exercise-photos")
 
 _flutter_web_dir = (
     Path(__file__).resolve().parents[1] / "../flutter_app/build/web"
