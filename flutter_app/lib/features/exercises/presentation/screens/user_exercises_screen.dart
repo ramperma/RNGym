@@ -258,6 +258,8 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
   File? _photo;
   String? _existingFotoUrl; // URL ya guardada en servidor (empieza por /storage/)
   bool _isSaving = false;
+  bool _showDebugConsole = false;
+  final List<String> _debugLogs = [];
 
   final _grupos = [
     'pecho', 'espalda', 'hombros', 'biceps', 'triceps',
@@ -296,35 +298,82 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
     super.dispose();
   }
 
+  void _log(String message) {
+    final time = DateTime.now().toString().split(' ').last.substring(0, 8);
+    setState(() {
+      _debugLogs.add('[$time] $message');
+    });
+    debugPrint('[$time] [EXERCISE_SAVE_LOG] $message');
+  }
+
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1280);
     if (picked != null) {
       setState(() => _photo = File(picked.path));
+      debugPrint("Photo picked: ${picked.path}");
     }
   }
 
   Future<void> _save() async {
     if (_nombreCtrl.text.trim().isEmpty) return;
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _showDebugConsole = true;
+      _debugLogs.clear();
+    });
+
+    _log("=== INICIANDO PROCESO DE GUARDADO ===");
+    _log("Nombre del ejercicio: ${_nombreCtrl.text.trim()}");
+    _log("Grupo muscular: $_grupoMuscular");
+    _log("Máquina / Equipamiento: ${_machineCtrl.text.trim()}");
+    _log("Series: $_series, Repeticiones: ${_repsCtrl.text.trim()}");
+    _log("Descanso: $_descanso segundos");
+    _log("RIR/RPE: ${_rirCtrl.text.trim()}");
+    _log("Notas: ${_notasCtrl.text.trim()}");
 
     try {
-      final notifier = ProviderScope.containerOf(context).read(userExercisesProvider.notifier);
+      final client = ProviderScope.containerOf(context).read(apiClientProvider);
+      _log("Base URL del Servidor Activa: ${client.baseUrl}");
 
       String? fotoPath;
       if (_photo != null) {
-        // Hay un archivo local nuevo seleccionado por el usuario → subirlo
-        final api = ProviderScope.containerOf(context).read(userExerciseApiProvider);
-        fotoPath = await api.uploadPhoto(_photo!);
+        _log("Nueva foto local seleccionada para subir: ${_photo!.path}");
+        _log("Comprobando existencia física del archivo local...");
+        if (await _photo!.exists()) {
+          final size = await _photo!.length();
+          _log("Archivo local existe. Tamaño: ${(size / 1024).toStringAsFixed(2)} KB");
+          
+          _log("Llamando a Multipart/Upload del archivo local...");
+          final api = ProviderScope.containerOf(context).read(userExerciseApiProvider);
+          try {
+            fotoPath = await api.uploadPhoto(_photo!);
+            _log("¡Subida exitosa a la API!");
+            _log("Ruta asignada en servidor: $fotoPath");
+          } catch (uploadError) {
+            _log("¡ERROR CRÍTICO AL SUBIR LA IMAGEN!");
+            if (uploadError is DioException) {
+              _log("DioException: ${uploadError.message}");
+              _log("Status Code: ${uploadError.response?.statusCode}");
+              _log("Respuesta Servidor: ${uploadError.response?.data}");
+            } else {
+              _log("Detalle de excepción: $uploadError");
+            }
+            rethrow;
+          }
+        } else {
+          _log("¡ERROR!: El archivo físico no existe en la ruta proporcionada por el dispositivo.");
+          throw Exception("El archivo de imagen local no se pudo encontrar.");
+        }
       } else if (_existingFotoUrl != null) {
-        // Mantener la URL ya guardada en el servidor
+        _log("Manteniendo foto previamente guardada en el servidor: $_existingFotoUrl");
         fotoPath = _existingFotoUrl;
       } else if (widget.exercise?.machineFotoPath != null) {
-        // Mantener foto existente
+        _log("Manteniendo foto existente del ejercicio: ${widget.exercise!.machineFotoPath}");
         fotoPath = widget.exercise!.machineFotoPath;
+      } else {
+        _log("No se ha adjuntado ninguna foto para este ejercicio.");
       }
-
-      if (!mounted) return;
 
       final data = {
         'nombre': _nombreCtrl.text.trim(),
@@ -335,32 +384,124 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
         'repeticiones': _repsCtrl.text.trim().isEmpty ? null : _repsCtrl.text.trim(),
         'descanso_segundos': _descanso,
         'rir_o_pe': _rirCtrl.text.trim().isEmpty ? null : _rirCtrl.text.trim(),
-        'notas': _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
+        'notes': _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       };
 
+      _log("Payload final construido para enviar: $data");
+      
+      final notifier = ProviderScope.containerOf(context).read(userExercisesProvider.notifier);
       UserExercise? result;
       if (widget.exercise != null) {
+        _log("Llamando a notifier.updateExercise para actualizar ID: ${widget.exercise!.id}...");
         result = await notifier.updateExercise(widget.exercise!.id, data);
       } else {
+        _log("Llamando a notifier.createExercise para crear nuevo registro...");
         result = await notifier.createExercise(data);
       }
 
       if (result == null) {
-        final errorMsg = ProviderScope.containerOf(context).read(userExercisesProvider).error ?? 'Error al guardar el ejercicio en el servidor';
+        final errorMsg = ProviderScope.containerOf(context).read(userExercisesProvider).error ?? 'Error desconocido';
+        _log("¡ERROR!: El notifier devolvió null al guardar en base de datos.");
+        _log("Mensaje de error en provider: $errorMsg");
         throw Exception(errorMsg);
       }
 
+      _log("¡GUARDADO REALIZADO CON ÉXITO EN EL SERVIDOR!");
+      _log("Ejercicio ID: ${result.id}");
+      _log("Nombre: ${result.nombre}");
+      _log("Foto final en DB: ${result.machineFotoPath}");
+      _log("URL resuelta para mostrar: ${result.imageUrl}");
+      
+      _log("Cerrando modal en 1.5 segundos...");
+      await Future.delayed(const Duration(milliseconds: 1500));
       if (mounted) Navigator.pop(context);
     } catch (e) {
+      _log("=== PROCESO ABORTADO CON ERROR ===");
+      _log("Excepción capturada: $e");
       ErrorReporter.report(Exception('Error guardando ejercicio: $e'), StackTrace.current);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Widget _buildDebugConsole() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F0F12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      height: 250,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bug_report, color: Color(0xFFFF6B00), size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'CONSOLA DE DEPURACIÓN (REAL-TIME)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+              const Spacer(),
+              if (!_isSaving) ...[
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.white54, size: 14),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _debugLogs.join('\n')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Logs copiados al portapapeles'), backgroundColor: Colors.green),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54, size: 14),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => setState(() => _showDebugConsole = false),
+                ),
+              ],
+            ],
+          ),
+          const Divider(color: Colors.white12, height: 12),
+          Expanded(
+            child: ListView.builder(
+              shrinkWrap: true,
+              reverse: true, // Auto-scrolls to show most recent logs
+              itemCount: _debugLogs.length,
+              itemBuilder: (ctx, i) {
+                final log = _debugLogs[_debugLogs.length - 1 - i];
+                final isError = log.contains('ERROR') || log.contains('ABORTADO');
+                final isSuccess = log.contains('ÉXITO') || log.contains('exitosa');
+                Color textColor = Colors.white70;
+                if (isError) textColor = Colors.redAccent;
+                if (isSuccess) textColor = Colors.greenAccent;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    log,
+                    style: TextStyle(
+                      color: textColor,
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -406,6 +547,10 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (_showDebugConsole) ...[
+                    _buildDebugConsole(),
+                    const SizedBox(height: 16),
+                  ],
                   // Photo picker
                   GestureDetector(
                     onTap: _pickPhoto,
