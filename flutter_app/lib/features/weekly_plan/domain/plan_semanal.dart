@@ -1,3 +1,4 @@
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 
 class PlanDiaEjercicio {
@@ -14,9 +15,11 @@ class PlanDiaEjercicio {
 
   String? get imageUrl {
     if (machineFotoUrl == null) return null;
-    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
-    final cleanPath = machineFotoUrl!.replaceAll('backend/', '');
-    return '$baseUrl/$cleanPath';
+    final activeBaseUrl = AppConfig.baseUrl ?? Env.apiBaseUrl;
+    final baseUrl = activeBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = machineFotoUrl!.replaceAll('backend/', '').replaceAll('backend/storage/', 'storage/');
+    final path = cleanPath.startsWith('/') ? cleanPath : '/$cleanPath';
+    return '$baseUrl$path';
   }
 
   PlanDiaEjercicio({

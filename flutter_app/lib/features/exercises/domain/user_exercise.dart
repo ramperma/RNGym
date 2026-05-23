@@ -1,3 +1,4 @@
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 
 class UserExercise {
@@ -14,9 +15,12 @@ class UserExercise {
 
   String? get imageUrl {
     if (machineFotoPath == null) return null;
-    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
-    final cleanPath = machineFotoPath!.replaceAll('backend/', '');
-    return '$baseUrl/$cleanPath';
+    final activeBaseUrl = AppConfig.baseUrl ?? Env.apiBaseUrl;
+    final baseUrl = activeBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = machineFotoPath!.replaceAll('backend/', '').replaceAll('backend/storage/', 'storage/');
+    // Ensure we don't have double slashes after the domain unless it's the protocol
+    final path = cleanPath.startsWith('/') ? cleanPath : '/$cleanPath';
+    return '$baseUrl$path';
   }
 
   UserExercise({

@@ -32,11 +32,14 @@ class UserExerciseApi {
   }
 
   Future<String> uploadPhoto(File file) async {
+    final path = file.path;
+    final ext = path.contains('.') ? path.split('.').last.toLowerCase() : 'jpeg';
+    final mimeSubtype = (ext == 'jpg') ? 'jpeg' : ext;
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(
-        file.path,
-        filename: file.path.split('/').last,
-        contentType: DioMediaType.parse('image/${file.path.split('.').last}'),
+        path,
+        filename: path.split('/').last,
+        contentType: DioMediaType.parse('image/$mimeSubtype'),
       ),
     });
     final response = await _client.uploadFile('/user-exercises/upload-photo', formData);

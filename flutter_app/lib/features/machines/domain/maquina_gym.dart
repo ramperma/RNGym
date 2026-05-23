@@ -1,3 +1,4 @@
+import '../../../core/app_config.dart';
 import '../../../core/env.dart';
 
 class MaquinaGym {
@@ -12,9 +13,11 @@ class MaquinaGym {
 
   String? get imageUrl {
     if (fotoPath == null) return null;
-    final baseUrl = Env.apiBaseUrl.replaceAll('/api/v1', '');
-    final cleanPath = fotoPath!.replaceAll('backend/', '');
-    return '$baseUrl/$cleanPath';
+    final activeBaseUrl = AppConfig.baseUrl ?? Env.apiBaseUrl;
+    final baseUrl = activeBaseUrl.replaceAll('/api/v1', '');
+    final cleanPath = fotoPath!.replaceAll('backend/', '').replaceAll('backend/storage/', 'storage/');
+    final path = cleanPath.startsWith('/') ? cleanPath : '/$cleanPath';
+    return '$baseUrl$path';
   }
 
   MaquinaGym({

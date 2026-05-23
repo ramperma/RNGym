@@ -313,11 +313,7 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
 
       String? fotoPath;
       if (_photo != null) {
-<<<<<<< HEAD
-        // Subir foto nueva seleccionada del dispositivo
-=======
         // Hay un archivo local nuevo seleccionado por el usuario → subirlo
->>>>>>> 168c128 (Fix image handling on Android: add permissions, serve uploads, use network images)
         final api = ProviderScope.containerOf(context).read(userExerciseApiProvider);
         fotoPath = await api.uploadPhoto(_photo!);
       } else if (_existingFotoUrl != null) {
@@ -342,10 +338,16 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
         'notas': _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       };
 
+      UserExercise? result;
       if (widget.exercise != null) {
-        await notifier.updateExercise(widget.exercise!.id, data);
+        result = await notifier.updateExercise(widget.exercise!.id, data);
       } else {
-        await notifier.createExercise(data);
+        result = await notifier.createExercise(data);
+      }
+
+      if (result == null) {
+        final errorMsg = ProviderScope.containerOf(context).read(userExercisesProvider).error ?? 'Error al guardar el ejercicio en el servidor';
+        throw Exception(errorMsg);
       }
 
       if (mounted) Navigator.pop(context);
@@ -420,18 +422,6 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                               borderRadius: BorderRadius.circular(16),
                               child: Image.file(_photo!, fit: BoxFit.cover),
                             )
-<<<<<<< HEAD
-                          : widget.exercise?.imageUrl != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Image.network(
-                                    widget.exercise!.imageUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
-                                  ),
-                                )
-                              : _buildPhotoPlaceholder(),
-=======
                           : _existingFotoUrl != null
                               // Foto ya guardada en el servidor
                               ? ClipRRect(
@@ -441,21 +431,15 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                                       final client = ProviderScope.containerOf(ctx).read(apiClientProvider);
                                       final base = client.baseUrl.replaceAll('/api/v1', '');
                                       final url = _existingFotoUrl!.startsWith('http') ? _existingFotoUrl! : '$base$_existingFotoUrl';
-                                      return Image.network(url, fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white24, size: 40),
+                                      return Image.network(
+                                        url,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
                                       );
                                     },
                                   ),
                                 )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFFFF6B00), size: 36),
-                                    const SizedBox(height: 8),
-                                    Text('Añadir foto de máquina (opcional)', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
-                                  ],
-                                ),
->>>>>>> 168c128 (Fix image handling on Android: add permissions, serve uploads, use network images)
+                              : _buildPhotoPlaceholder(),
                     ),
                   ),
                   const SizedBox(height: 20),
