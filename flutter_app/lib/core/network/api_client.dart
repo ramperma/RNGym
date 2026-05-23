@@ -23,6 +23,8 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  String get baseUrl => _dio.options.baseUrl;
+
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     return _dio.get(path, queryParameters: queryParameters);
   }

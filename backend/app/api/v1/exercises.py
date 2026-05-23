@@ -98,10 +98,10 @@ async def update_user_exercise(
         if "machine_foto_path" in data and data["machine_foto_path"] != ejercicio.machine_foto_path:
             if ejercicio.machine_foto_path:
                 try:
-                    old_photo = Path(ejercicio.machine_foto_path)
-                    if not old_photo.is_absolute():
-                        old_photo = STORAGE_DIR.parent.parent / old_photo
-                    old_photo.unlink(missing_ok=True)
+                    # Resolve actual file path from stored URL
+                    project_root = Path(__file__).resolve().parents[3]
+                    old_photo_path = project_root / ejercicio.machine_foto_path.lstrip('/')
+                    old_photo_path.unlink(missing_ok=True)
                 except OSError:
                     pass
         updated = update_ejercicio_usuario(conn, exercise_id, current_user["id"], data)
@@ -122,9 +122,9 @@ async def delete_user_exercise(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ejercicio no encontrado")
         if ejercicio.machine_foto_path:
             try:
-                photo_path = Path(ejercicio.machine_foto_path)
-                if not photo_path.is_absolute():
-                    photo_path = STORAGE_DIR.parent.parent / photo_path
+                # Resolve actual file path from stored URL
+                project_root = Path(__file__).resolve().parents[3]
+                photo_path = project_root / ejercicio.machine_foto_path.lstrip('/')
                 photo_path.unlink(missing_ok=True)
             except OSError:
                 pass
@@ -149,7 +149,7 @@ async def upload_user_exercise_photo(
     file_path = user_dir / filename
     with file_path.open("wb") as f:
         f.write(content)
-    # Devolver ruta relativa a la raíz del proyecto para que sea servible
-    project_root = Path(__file__).resolve().parents[3]
-    relative_path = file_path.relative_to(project_root)
-    return {"foto_path": str(relative_path)}
+    # Return a web-accessible URL path (served by /storage static mount)
+    # e.g. /storage/exercises/<user_id>/<filename>
+    relative_url = f"/storage/exercises/{current_user['id']}/{filename}"
+    return {"foto_path": relative_url}

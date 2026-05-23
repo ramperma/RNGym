@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/error_reporter.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_exercise.dart';
 import '../providers/user_exercises_provider.dart';
+
 
 class UserExercisesScreen extends ConsumerStatefulWidget {
   const UserExercisesScreen({super.key});
@@ -188,6 +190,19 @@ class _UserExercisesScreenState extends ConsumerState<UserExercisesScreen> {
     );
   }
 
+  Widget _buildExerciseImage(String path, {double size = 48}) {
+    final container = ref.read(apiClientProvider);
+    final baseUrl = container.baseUrl.replaceAll('/api/v1', '');
+    final url = path.startsWith('http') ? path : '$baseUrl$path';
+    return Image.network(
+      url,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+    );
+  }
+
   void _confirmDelete(UserExercise e) {
     showDialog(
       context: context,
@@ -241,6 +256,7 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
   int _series = 3;
   int _descanso = 90;
   File? _photo;
+  String? _existingFotoUrl; // URL ya guardada en servidor (empieza por /storage/)
   bool _isSaving = false;
 
   final _grupos = [
@@ -262,6 +278,11 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       _descanso = e.descansoSegundos;
       _rirCtrl.text = e.rirOPe ?? '';
       _notasCtrl.text = e.notas ?? '';
+      // Si ya hay foto guardada en el servidor, guardamos su URL pero
+      // NO creamos un File local (no existe en el dispositivo).
+      if (e.machineFotoPath != null) {
+        _existingFotoUrl = e.machineFotoPath;
+      }
     }
   }
 
@@ -292,9 +313,16 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
 
       String? fotoPath;
       if (_photo != null) {
+<<<<<<< HEAD
         // Subir foto nueva seleccionada del dispositivo
+=======
+        // Hay un archivo local nuevo seleccionado por el usuario → subirlo
+>>>>>>> 168c128 (Fix image handling on Android: add permissions, serve uploads, use network images)
         final api = ProviderScope.containerOf(context).read(userExerciseApiProvider);
         fotoPath = await api.uploadPhoto(_photo!);
+      } else if (_existingFotoUrl != null) {
+        // Mantener la URL ya guardada en el servidor
+        fotoPath = _existingFotoUrl;
       } else if (widget.exercise?.machineFotoPath != null) {
         // Mantener foto existente
         fotoPath = widget.exercise!.machineFotoPath;
@@ -387,10 +415,12 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                         border: Border.all(color: Colors.white10),
                       ),
                       child: _photo != null
+                          // Nueva foto elegida localmente
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(16),
                               child: Image.file(_photo!, fit: BoxFit.cover),
                             )
+<<<<<<< HEAD
                           : widget.exercise?.imageUrl != null
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(16),
@@ -401,6 +431,31 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
                                   ),
                                 )
                               : _buildPhotoPlaceholder(),
+=======
+                          : _existingFotoUrl != null
+                              // Foto ya guardada en el servidor
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Builder(
+                                    builder: (ctx) {
+                                      final client = ProviderScope.containerOf(ctx).read(apiClientProvider);
+                                      final base = client.baseUrl.replaceAll('/api/v1', '');
+                                      final url = _existingFotoUrl!.startsWith('http') ? _existingFotoUrl! : '$base$_existingFotoUrl';
+                                      return Image.network(url, fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white24, size: 40),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.add_photo_alternate_rounded, color: Color(0xFFFF6B00), size: 36),
+                                    const SizedBox(height: 8),
+                                    Text('Añadir foto de máquina (opcional)', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
+                                  ],
+                                ),
+>>>>>>> 168c128 (Fix image handling on Android: add permissions, serve uploads, use network images)
                     ),
                   ),
                   const SizedBox(height: 20),
