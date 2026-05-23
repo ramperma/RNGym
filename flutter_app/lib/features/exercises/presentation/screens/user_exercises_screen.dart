@@ -386,7 +386,7 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
         'repeticiones': _repsCtrl.text.trim().isEmpty ? null : _repsCtrl.text.trim(),
         'descanso_segundos': _descanso,
         'rir_o_pe': _rirCtrl.text.trim().isEmpty ? null : _rirCtrl.text.trim(),
-        'notes': _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
+        'notas': _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       };
 
       _log("Payload final construido para enviar: $data");

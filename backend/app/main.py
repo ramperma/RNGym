@@ -52,10 +52,10 @@ app.include_router(me_router)
 app.include_router(dashboard_router)
 app.include_router(exercises_router)
 
-# Montar directorio de imágenes de ejercicios para servir estáticamente
-_exercises_storage_dir = Path(__file__).resolve().parent.parent / "storage" / "exercises"
-_exercises_storage_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/storage/exercises", StaticFiles(directory=_exercises_storage_dir), name="exercise-photos")
+# Montar directorio global de almacenamiento (ejercicios, máquinas, etc.) bajo /api/v1/storage
+_storage_dir = Path(__file__).resolve().parent.parent / "storage"
+_storage_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/v1/storage", StaticFiles(directory=_storage_dir), name="storage-files")
 
 _flutter_web_dir = (
     Path(__file__).resolve().parents[1] / "../flutter_app/build/web"

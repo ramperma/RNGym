@@ -19,7 +19,12 @@ class PlanDiaEjercicio {
     final baseUrl = activeBaseUrl.replaceAll('/api/v1', '');
     final cleanPath = machineFotoUrl!.replaceAll('backend/', '').replaceAll('backend/storage/', 'storage/');
     final path = cleanPath.startsWith('/') ? cleanPath : '/$cleanPath';
-    return '$baseUrl$path';
+    if (path.contains('/api/v1/')) {
+      return '$baseUrl$path';
+    } else {
+      final formattedPath = path.replaceAll('/storage/', '/api/v1/storage/');
+      return '$baseUrl$formattedPath';
+    }
   }
 
   PlanDiaEjercicio({

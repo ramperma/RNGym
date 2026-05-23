@@ -17,10 +17,16 @@ class UserExercise {
     if (machineFotoPath == null) return null;
     final activeBaseUrl = AppConfig.baseUrl ?? Env.apiBaseUrl;
     final baseUrl = activeBaseUrl.replaceAll('/api/v1', '');
-    final cleanPath = machineFotoPath!.replaceAll('backend/', '').replaceAll('backend/storage/', 'storage/');
-    // Ensure we don't have double slashes after the domain unless it's the protocol
+    final cleanPath = machineFotoPath!
+        .replaceAll('backend/', '')
+        .replaceAll('backend/storage/', 'storage/');
     final path = cleanPath.startsWith('/') ? cleanPath : '/$cleanPath';
-    return '$baseUrl$path';
+    if (path.contains('/api/v1/')) {
+      return '$baseUrl$path';
+    } else {
+      final formattedPath = path.replaceAll('/storage/', '/api/v1/storage/');
+      return '$baseUrl$formattedPath';
+    }
   }
 
   UserExercise({

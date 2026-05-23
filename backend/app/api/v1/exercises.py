@@ -149,7 +149,7 @@ async def upload_user_exercise_photo(
     file_path = user_dir / filename
     with file_path.open("wb") as f:
         f.write(content)
-    # Return a web-accessible URL path (served by /storage static mount)
-    # e.g. /storage/exercises/<user_id>/<filename>
-    relative_url = f"/storage/exercises/{current_user['id']}/{filename}"
+    # Return a web-accessible URL path (served by /api/v1/storage static mount)
+    # e.g. /api/v1/storage/exercises/<user_id>/<filename>
+    relative_url = f"/api/v1/storage/exercises/{current_user['id']}/{filename}"
     return {"foto_path": relative_url}
