@@ -10,6 +10,7 @@ import '../../../../core/error_reporter.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_exercise.dart';
 import '../providers/user_exercises_provider.dart';
+import 'package:gym_trainer_app/shared/widgets/full_screen_image_viewer.dart';
 
 
 class UserExercisesScreen extends ConsumerStatefulWidget {
@@ -136,14 +137,19 @@ class _UserExercisesScreenState extends ConsumerState<UserExercisesScreen> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: e.imageUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  e.imageUrl!,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+            ? GestureDetector(
+                onTap: () {
+                  FullScreenImageViewer.show(context, e.imageUrl!, isNetwork: true);
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    e.imageUrl!,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+                  ),
                 ),
               )
             : _buildPlaceholderIcon(),

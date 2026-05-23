@@ -17,6 +17,8 @@ import '../../../ai/data/ai_explanation_cache.dart';
 import '../../../ai/presentation/providers/ai_provider.dart';
 import '../../../weekly_plan/domain/plan_semanal.dart';
 import '../providers/sessions_provider.dart';
+import 'package:gym_trainer_app/shared/widgets/full_screen_image_viewer.dart';
+
 
 class WorkoutSetRecord {
   final int setIndex;
@@ -956,14 +958,19 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 if (ex.imageUrl != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        ex.imageUrl!,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    child: GestureDetector(
+                      onTap: () {
+                        FullScreenImageViewer.show(context, ex.imageUrl!, isNetwork: true);
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          ex.imageUrl!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),
@@ -1408,6 +1415,10 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
     );
   }
 
+  void _showFullScreenImage(BuildContext context, String path, {required bool isNetwork}) {
+    FullScreenImageViewer.show(context, path, isNetwork: isNetwork);
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
@@ -1444,13 +1455,30 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
             padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B00).withOpacity(0.15),
-                    shape: BoxShape.circle,
+                GestureDetector(
+                  onTap: () {
+                    if (widget.ejercicio.imageUrl != null) {
+                      _showFullScreenImage(context, widget.ejercicio.imageUrl!, isNetwork: true);
+                    }
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B00).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: widget.ejercicio.imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.network(
+                              widget.ejercicio.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 18),
+                            ),
+                          )
+                        : const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 18),
                   ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF6B00), size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1497,9 +1525,15 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
                 : ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    itemCount: _messages.length + (_isLoading ? 1 : 0),
+                    itemCount: _messages.length + (_isLoading ? 1 : 0) + (widget.ejercicio.imageUrl != null ? 1 : 0),
                     itemBuilder: (_, i) {
-                      if (i == _messages.length) {
+                      final hasHeader = widget.ejercicio.imageUrl != null;
+                      if (hasHeader && i == 0) {
+                        return _buildExercisePhotoHeader();
+                      }
+                      final msgIndex = hasHeader ? i - 1 : i;
+
+                      if (msgIndex == _messages.length) {
                         return const Align(
                           alignment: Alignment.centerLeft,
                           child: Padding(
@@ -1508,7 +1542,7 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
                           ),
                         );
                       }
-                      return _buildBubble(_messages[i]);
+                      return _buildBubble(_messages[msgIndex]);
                     },
                   ),
           ),
@@ -1603,6 +1637,110 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
     );
   }
 
+  Widget _buildExercisePhotoHeader() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GestureDetector(
+        onTap: () {
+          if (widget.ejercicio.imageUrl != null) {
+            _showFullScreenImage(context, widget.ejercicio.imageUrl!, isNetwork: true);
+          }
+        },
+        child: Container(
+          height: 180,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  widget.ejercicio.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFF1E1E28),
+                    child: const Center(
+                      child: Icon(Icons.broken_image_rounded, color: Colors.white24, size: 48),
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.ejercicio.nombreEjercicio,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (widget.ejercicio.machineNombre != null && widget.ejercicio.machineNombre != 'No') ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Máquina: ${widget.ejercicio.machineNombre}',
+                                style: const TextStyle(
+                                  color: Color(0xFFFF8C00),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.fullscreen_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBubble(_ChatMessage msg) {
     final isAI = msg.role == 'ai';
     return Padding(
@@ -1641,9 +1779,12 @@ class _ExerciseAIHelpSheetState extends State<_ExerciseAIHelpSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (msg.image != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.file(msg.image!, width: 200, fit: BoxFit.cover),
+                    GestureDetector(
+                      onTap: () => _showFullScreenImage(context, msg.image!.path, isNetwork: false),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(msg.image!, width: 200, fit: BoxFit.cover),
+                      ),
                     ),
                     const SizedBox(height: 8),
                   ],
