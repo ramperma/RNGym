@@ -414,9 +414,13 @@ class _ExerciseFormSheetState extends State<_ExerciseFormSheet> {
       _log("Foto final en DB: ${result.machineFotoPath}");
       _log("URL resuelta para mostrar: ${result.imageUrl}");
       
-      _log("Cerrando modal en 1.5 segundos...");
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (mounted) Navigator.pop(context);
+      if (!_showDebugConsole) {
+        _log("Cerrando modal en 1.5 segundos...");
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (mounted) Navigator.pop(context);
+      } else {
+        _log("Guardado completado. La consola se mantiene abierta para que puedas leer o copiar los logs a tu gusto.");
+      }
     } catch (e) {
       _log("=== PROCESO ABORTADO CON ERROR ===");
       _log("Excepción capturada: $e");
