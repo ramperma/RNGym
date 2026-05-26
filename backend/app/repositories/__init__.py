@@ -19,6 +19,7 @@ from app.repositories.rutina_repository import (
 from app.repositories.sesion_repository import (
     create_sesion,
     delete_sesion,
+    get_exercise_history_by_weeks,
     get_or_create_ejercicio_by_nombre,
     get_registros_by_sesion,
     get_sesion_by_id,
@@ -72,6 +73,7 @@ from app.repositories.ejercicio_usuario_repository import (
     create_ejercicio_usuario,
     delete_ejercicio_usuario,
     get_ejercicio_usuario_by_id,
+    get_ejercicio_usuario_by_nombre,
     list_ejercicios_usuario,
     update_ejercicio_usuario,
 )
@@ -96,6 +98,7 @@ __all__ = [
     "update_rutina",
     "create_sesion",
     "delete_sesion",
+    "get_exercise_history_by_weeks",
     "get_or_create_ejercicio_by_nombre",
     "get_registros_by_sesion",
     "get_sesion_by_id",
@@ -135,6 +138,7 @@ __all__ = [
     "create_ejercicio_usuario",
     "delete_ejercicio_usuario",
     "get_ejercicio_usuario_by_id",
+    "get_ejercicio_usuario_by_nombre",
     "list_ejercicios_usuario",
     "update_ejercicio_usuario",
 ]

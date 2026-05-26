@@ -21,6 +21,8 @@ class PerfilSaludBase(BaseModel):
     objetivo_principal: str | None = None
     objetivo_detalle: str | None = None
     consentimiento_salud: bool = False
+    semanas_rotacion: int = 3
+    porcentaje_progresion: float = 5.0
 
 
 class PerfilSaludCreate(PerfilSaludBase):
@@ -45,6 +47,8 @@ class PerfilSaludUpdate(BaseModel):
     objetivo_principal: str | None = None
     objetivo_detalle: str | None = None
     consentimiento_salud: bool | None = None
+    semanas_rotacion: int | None = None
+    porcentaje_progresion: float | None = None
 
 
 class PerfilSaludResponse(BaseModel):
@@ -70,6 +74,8 @@ class PerfilSaludResponse(BaseModel):
     fecha_consentimiento_salud: datetime | None
     fecha_ultima_actualizacion: datetime
     created_at: datetime
+    semanas_rotacion: int | None = 3
+    porcentaje_progresion: float | None = 5.0
 
     class Config:
         from_attributes = True

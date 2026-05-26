@@ -40,6 +40,8 @@ def get_health_profile(current_user: dict = Depends(get_current_user)) -> dict:
             "fecha_consentimiento_salud": perfil.fecha_consentimiento_salud,
             "fecha_ultima_actualizacion": perfil.fecha_ultima_actualizacion,
             "created_at": perfil.created_at,
+            "semanas_rotacion": perfil.semanas_rotacion if perfil.semanas_rotacion is not None else 3,
+            "porcentaje_progresion": float(perfil.porcentaje_progresion) if perfil.porcentaje_progresion is not None else 5.0,
         }
 
 
@@ -74,6 +76,8 @@ def upsert_health_profile(
             "fecha_consentimiento_salud": perfil.fecha_consentimiento_salud,
             "fecha_ultima_actualizacion": perfil.fecha_ultima_actualizacion,
             "created_at": perfil.created_at,
+            "semanas_rotacion": perfil.semanas_rotacion if perfil.semanas_rotacion is not None else 3,
+            "porcentaje_progresion": float(perfil.porcentaje_progresion) if perfil.porcentaje_progresion is not None else 5.0,
         }
 
 

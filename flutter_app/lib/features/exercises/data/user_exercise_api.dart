@@ -31,6 +31,22 @@ class UserExerciseApi {
     await _client.delete('/user-exercises/$id');
   }
 
+  Future<String> uploadPlanExercisePhoto(String exerciseName, File file) async {
+    final path = file.path;
+    final ext = path.contains('.') ? path.split('.').last.toLowerCase() : 'jpeg';
+    final mimeSubtype = (ext == 'jpg') ? 'jpeg' : ext;
+    final formData = FormData.fromMap({
+      'exercise_name': exerciseName,
+      'file': await MultipartFile.fromFile(
+        path,
+        filename: path.split('/').last,
+        contentType: DioMediaType.parse('image/$mimeSubtype'),
+      ),
+    });
+    final response = await _client.uploadFile('/user-exercises/plan-exercise-photo', formData);
+    return (response.data as Map<String, dynamic>)['foto_path'] as String;
+  }
+
   Future<String> uploadPhoto(File file) async {
     final path = file.path;
     final ext = path.contains('.') ? path.split('.').last.toLowerCase() : 'jpeg';

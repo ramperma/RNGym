@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +41,8 @@ class PerfilSalud(Base):
 
     consentimiento_salud: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     fecha_consentimiento_salud: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    semanas_rotacion: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
+    porcentaje_progresion: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True, default=5.0)
 
     fecha_ultima_actualizacion: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

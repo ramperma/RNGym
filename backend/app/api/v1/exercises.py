@@ -132,6 +132,58 @@ async def delete_user_exercise(
     return {"ok": True}
 
 
+@router.post("/user-exercises/plan-exercise-photo")
+async def upload_plan_exercise_photo(
+    exercise_name: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Upload a photo for an AI-plan exercise, identified by name.
+    Creates a minimal user-exercise entry if one doesn't exist yet, so the
+    photo is automatically shown by _enrich_plan_json on every plan load."""
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Archivo demasiado grande (max 10MB)")
+    ext = Path(file.filename or "img").suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Solo se permiten imágenes jpg, png, webp")
+
+    user_dir = STORAGE_DIR / current_user["id"]
+    user_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}{ext}"
+    file_path = user_dir / filename
+    with file_path.open("wb") as f:
+        f.write(content)
+
+    relative_url = f"/api/v1/storage/exercises/{current_user['id']}/{filename}"
+
+    from app.repositories import (
+        get_ejercicio_usuario_by_nombre,
+        create_ejercicio_usuario,
+        update_ejercicio_usuario,
+    )
+    with db_connection_context() as conn:
+        existing = get_ejercicio_usuario_by_nombre(conn, current_user["id"], exercise_name)
+        if existing:
+            if existing.machine_foto_path:
+                try:
+                    project_root = Path(__file__).resolve().parents[3]
+                    old_path = project_root / existing.machine_foto_path.lstrip("/")
+                    old_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            update_ejercicio_usuario(conn, existing.id, current_user["id"], {"machine_foto_path": relative_url})
+        else:
+            create_ejercicio_usuario(
+                conn,
+                usuario_id=current_user["id"],
+                nombre=exercise_name,
+                machine_foto_path=relative_url,
+            )
+
+    return {"foto_path": relative_url}
+
+
 @router.post("/user-exercises/upload-photo")
 async def upload_user_exercise_photo(
     file: UploadFile = File(...),

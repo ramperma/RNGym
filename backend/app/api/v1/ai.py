@@ -1082,6 +1082,263 @@ async def modify_weekly_plan(
         )
 
 
+def _build_evolve_plan_prompt(
+    plan_json: dict,
+    perfil,
+    historial: list[dict],
+    semanas_rotacion: int,
+    porcentaje_progresion: float,
+) -> list[dict[str, str]]:
+    objetivo = (perfil.objetivo_principal if perfil and perfil.objetivo_principal else "general")
+    lesiones = (perfil.lesiones or []) if perfil else []
+    condiciones = (perfil.condiciones_medicas or []) if perfil else []
+
+    perfil_str = f"""PERFIL DE SALUD:
+- Objetivo principal: {objetivo}
+- Lesiones activas: {', '.join(lesiones) if lesiones else 'ninguna'}
+- Condiciones médicas: {', '.join(condiciones) if condiciones else 'ninguna'}
+"""
+
+    if historial:
+        weeks: dict[str, list] = {}
+        for item in historial:
+            key = item["semana"] or "desconocida"
+            weeks.setdefault(key, []).append(item)
+
+        historial_str = f"\nHISTORIAL DE ENTRENAMIENTOS (últimas {semanas_rotacion} semanas):\n"
+        for semana in sorted(weeks.keys(), reverse=True):
+            historial_str += f"\nSemana del {semana}:\n"
+            for item in weeks[semana]:
+                peso_str = f" | Máx: {item['max_peso_kg']}kg" if item["max_peso_kg"] else ""
+                reps_str = f" ×{item['max_reps']} reps" if item["max_reps"] else ""
+                equipo_str = f" (equipo: {item['equipo']})" if item["equipo"] else ""
+                historial_str += f"  - {item['ejercicio_nombre']}{equipo_str}{peso_str}{reps_str}, {item['total_sets']} series\n"
+    else:
+        historial_str = "\nHISTORIAL: Sin datos de entrenamientos registrados aún. Aplica progresión estándar.\n"
+
+    prompt = f"""Eres un entrenador personal experto en periodización y planificación semanal progresiva.
+
+{perfil_str}
+{historial_str}
+
+CONFIGURACIÓN DE EVOLUCIÓN:
+- Período de rotación: {semanas_rotacion} semanas (rota ejercicios/máquinas que llevan {semanas_rotacion} semanas seguidas)
+- Porcentaje de progresión: {porcentaje_progresion}% (incremento aproximado en carga, repeticiones o series)
+
+PLAN ACTUAL A EVOLUCIONAR:
+{json.dumps(plan_json, indent=2, ensure_ascii=False)}
+
+INSTRUCCIONES ESTRICTAS:
+1. Analiza qué ejercicios del plan actual aparecen en el historial REPETIDAMENTE durante las últimas {semanas_rotacion} semanas sin variación.
+2. Para esos ejercicios repetidos, PROPÓN variantes con diferente máquina o equipo que trabajen el mismo grupo muscular.
+3. Para ejercicios con historial de carga registrada, aplica una PROGRESIÓN del {porcentaje_progresion}% (aumenta series, repeticiones o reduce descanso según el objetivo "{objetivo}").
+4. RESPETA ABSOLUTAMENTE las lesiones y condiciones médicas. No incluyas ningún ejercicio que las agraveéi.
+5. Mantén exactamente la misma estructura de días, tipos de bloque y número de ejercicios.
+6. Las notas de ejecución deben ser claras y técnicas (máximo 25 palabras por ejercicio).
+7. Devuelve ÚNICAMENTE los días que fueron modificados en "dias_modificados".
+
+FORMATO JSON DE RESPUESTA (solo JSON, sin texto adicional, sin markdown):
+{{
+  "dias_modificados": [
+    {{
+      "dia_semana": 0,
+      "nombre_dia": "Lunes",
+      "tipo": "workout",
+      "bloques": [
+        {{
+          "tipo": "calentamiento",
+          "nombre": "Calentamiento específico",
+          "duracion_minutos": 8,
+          "ejercicios": [
+            {{
+              "nombre_ejercicio": "nombre del ejercicio",
+              "grupo_muscular": "grupo muscular",
+              "series": 3,
+              "repeticiones": "10-12",
+              "descanso_segundos": 60,
+              "rir_o_rpe": "RPE 7",
+              "notas": "Instrucciones de ejecución técnica detalladas.",
+              "machine_id": null,
+              "machine_nombre": "nombre de la máquina o equipo",
+              "machine_foto_url": null
+            }}
+          ]
+        }}
+      ],
+      "descanso_entre_bloques_minutos": 2,
+      "tiempo_total_estimado_minutos": 60,
+      "notas": "Descripción del enfoque evolutivo de esta sesión."
+    }}
+  ]
+}}"""
+
+    return [
+        {
+            "role": "system",
+            "content": "Eres un entrenador personal experto en periodización. Tu salida debe ser estrictamente un objeto JSON válido, sin explicaciones, sin markdown, sin bloques de código.",
+        },
+        {"role": "user", "content": prompt},
+    ]
+
+
+@router.post("/evolve-plan", response_model=AIWeeklyPlanResponse)
+async def evolve_weekly_plan(
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+) -> AIWeeklyPlanResponse:
+    plan_id = payload.get("plan_id")
+    semanas_rotacion = int(payload.get("semanas_rotacion", 3))
+    porcentaje_progresion = float(payload.get("porcentaje_progresion", 5.0))
+
+    if not plan_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="plan_id es requerido",
+        )
+
+    mode, provider, model, user_key = _resolve_ai_settings(current_user)
+
+    allowed, retry_after = check_rate_limit(current_user["id"], mode)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMIT_EXCEEDED", "message": f"Límite de llamadas superado. Retry-After: {retry_after}s"},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    allowed_quota, _ = check_token_quota(current_user["id"], mode)
+    if not allowed_quota:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "TOKEN_QUOTA_EXCEEDED", "message": "Cuota de tokens diaria agotada para el plan actual."},
+        )
+
+    from app.repositories import (
+        get_plan_by_id,
+        update_plan_semanal,
+        get_perfil_by_usuario,
+        list_maquinas,
+        get_exercise_history_by_weeks,
+    )
+    from app.db import db_connection_context
+
+    with db_connection_context() as conn:
+        plan = get_plan_by_id(conn, plan_id, current_user["id"])
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "PLAN_NOT_FOUND", "message": "Plan no encontrado"},
+            )
+        perfil = get_perfil_by_usuario(conn, current_user["id"])
+        historial = get_exercise_history_by_weeks(conn, current_user["id"], num_semanas=semanas_rotacion)
+        maquinas_map: dict[str, dict] = {}
+        for m in list_maquinas(conn, current_user["id"]):
+            mi = {"id": m.id, "nombre": m.nombre, "grupo_muscular": m.grupo_muscular, "foto_path": m.foto_path}
+            maquinas_map[m.id] = mi
+            maquinas_map[m.nombre] = mi
+
+    messages = _build_evolve_plan_prompt(
+        plan_json=plan.plan_json,
+        perfil=perfil,
+        historial=historial,
+        semanas_rotacion=semanas_rotacion,
+        porcentaje_progresion=porcentaje_progresion,
+    )
+
+    try:
+        response = await ai_client.chat(
+            provider=provider,
+            model=model,
+            messages=messages,
+            mode=mode,
+            user_api_key=user_key,
+            user_id=current_user["id"],
+            tipo_consulta="weekly_plan",
+            max_tokens=4096,
+            temperature=0.7,
+        )
+
+        text = ai_client._extract_text_response(response, provider) or ""
+        cleaned_text = text.strip()
+        if cleaned_text.startswith("```json"):
+            cleaned_text = cleaned_text[7:]
+        if cleaned_text.endswith("```"):
+            cleaned_text = cleaned_text[:-3]
+        cleaned_text = cleaned_text.strip()
+
+        try:
+            mod_raw = json.loads(cleaned_text)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={"code": "INVALID_JSON", "message": f"La IA no devolvió JSON válido para la evolución: {text[:200]}"},
+            )
+
+        original_dias = plan.plan_json.get("dias", [])
+        dias_modificados = mod_raw.get("dias_modificados", [])
+
+        dias_map = {d.get("dia_semana"): d for d in original_dias}
+        for d_mod in dias_modificados:
+            dia_idx = d_mod.get("dia_semana")
+            if dia_idx is not None and 0 <= dia_idx <= 6:
+                dias_map[dia_idx] = d_mod
+
+        dias_ordenados = [dias_map.get(i) for i in range(7) if dias_map.get(i) is not None]
+        while len(dias_ordenados) < 7:
+            missing_idx = len(dias_ordenados)
+            dias_ordenados.append({
+                "dia_semana": missing_idx,
+                "nombre_dia": DIAS_SEMANA[missing_idx],
+                "tipo": "rest",
+                "bloques": [],
+                "descanso_entre_bloques_minutos": 0,
+                "tiempo_total_estimado_minutos": 0,
+                "notas": "Día de descanso",
+            })
+
+        plan_fusionado_raw = {
+            "dias": dias_ordenados,
+            "nota_general": plan.plan_json.get("nota_general"),
+        }
+
+        plan_validado = _post_process_weekly_plan(plan_fusionado_raw, maquinas_map)
+
+        plan_data = {
+            "plan_json": plan_validado.model_dump(),
+            "metadata_ia": {
+                "proveedor": provider,
+                "modelo": ai_client._resolve_model(provider, model),
+                "modo": mode,
+                "evolucionado": True,
+                "semanas_rotacion": semanas_rotacion,
+                "porcentaje_progresion": porcentaje_progresion,
+            },
+        }
+
+        with db_connection_context() as conn:
+            plan_guardado = update_plan_semanal(conn, plan.id, current_user["id"], plan_data)
+
+        return AIWeeklyPlanResponse(
+            ok=True,
+            plan_guardado=plan_guardado,
+            proveedor=provider,
+            modelo=ai_client._resolve_model(provider, model),
+            modo=mode,
+        )
+    except AIError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": e.code, "message": e.message},
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "EVOLVE_FAILED", "message": f"Error evolucionando el plan: {str(e)}"},
+        )
+
+
 @router.post("/machines/upload", response_model=MaquinaGymResponse)
 async def upload_machine(
     nombre: str = Form(...),

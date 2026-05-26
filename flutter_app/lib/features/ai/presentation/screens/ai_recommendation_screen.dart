@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../weekly_plan/domain/plan_semanal.dart';
 import '../../../exercises/presentation/providers/user_exercises_provider.dart';
+import '../../../health_profile/presentation/providers/health_profile_provider.dart';
 import '../providers/ai_provider.dart';
 
 class AIRecommendationScreen extends ConsumerStatefulWidget {
@@ -31,6 +32,8 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   final List<String> _diasSeleccionados = [];
   final List<String> _lesionesSeleccionadas = [];
   final List<String> _prefEquipamientoSeleccionados = [];
+
+  final Set<String> _uploadingExercises = {};
 
   bool _personalizarProporcion = false;
   int _porcentajeMaquinasGuiadas = 50;
@@ -1041,25 +1044,61 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   }
 
   Widget _buildExerciseItem(PlanDiaEjercicio e, String planId, int diaSemana, String bloqueTipo) {
+    final isUploading = _uploadingExercises.contains(e.nombreEjercicio);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (e.imageUrl != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                  e.imageUrl!,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          GestureDetector(
+            onTap: isUploading ? null : () => _uploadExercisePhoto(e.nombreEjercicio, planId),
+            child: Tooltip(
+              message: e.imageUrl != null ? 'Cambiar foto' : 'Añadir foto',
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: isUploading
+                      ? Container(
+                          color: Colors.white.withOpacity(0.06),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF6B00)),
+                            ),
+                          ),
+                        )
+                      : e.imageUrl != null
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.network(
+                                  e.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _cameraPlaceholder(),
+                                ),
+                                Positioned(
+                                  right: 2,
+                                  bottom: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Icon(Icons.photo_camera_rounded, size: 10, color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : _cameraPlaceholder(),
                 ),
               ),
             ),
+          ),
+          const SizedBox(width: 10),
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: Icon(Icons.chevron_right_rounded, size: 16, color: const Color(0xFFFF6B00).withOpacity(0.8)),
@@ -1125,6 +1164,15 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     );
   }
 
+  Widget _cameraPlaceholder() {
+    return Container(
+      color: Colors.white.withOpacity(0.06),
+      child: const Center(
+        child: Icon(Icons.photo_camera_rounded, size: 18, color: Colors.white24),
+      ),
+    );
+  }
+
   Future<void> _confirmRemoveExercise(PlanDiaEjercicio e, String planId, int diaSemana, String bloqueTipo) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -1157,6 +1205,39 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     }
   }
 
+  Future<void> _uploadExercisePhoto(String exerciseName, String planId) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null) return;
+
+    setState(() => _uploadingExercises.add(exerciseName));
+    try {
+      final api = ref.read(userExerciseApiProvider);
+      await api.uploadPlanExercisePhoto(exerciseName, File(picked.path));
+      if (!mounted) return;
+      await ref.read(weeklyPlanProvider.notifier).loadPlan(planId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFF4CAF50),
+          content: Text('Foto añadida al ejercicio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFFF3366),
+            content: Text('Error al subir la foto: $e', style: const TextStyle(color: Colors.white)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingExercises.remove(exerciseName));
+    }
+  }
+
   Widget _buildModifyChatDock(String planId) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1166,50 +1247,250 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F0F12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.auto_fix_high_rounded, size: 17),
+                label: const Text(
+                  'Evolucionar Plan con IA',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
-                child: TextField(
-                  controller: _modInstructionsCtrl,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'Ajusta algo. Ej: "Cambia press banca por flexiones"',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 13),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF00E5FF),
+                  side: BorderSide(color: const Color(0xFF00E5FF).withOpacity(0.35)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
                 ),
+                onPressed: () => _showEvolvePlanSheet(context, planId),
               ),
             ),
-            const SizedBox(width: 10),
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B00), Color(0xFFFF8C00)],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F0F12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: TextField(
+                      controller: _modInstructionsCtrl,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Ajusta algo. Ej: "Cambia press banca por flexiones"',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 13),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send_rounded, color: Colors.black),
-                onPressed: () {
-                  final text = _modInstructionsCtrl.text.trim();
-                  if (text.isEmpty) return;
-                  ref.read(weeklyPlanProvider.notifier).modifyWeeklyPlan(
-                    planId: planId,
-                    instrucciones: text,
-                  );
-                  _modInstructionsCtrl.clear();
-                },
-              ),
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6B00), Color(0xFFFF8C00)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send_rounded, color: Colors.black),
+                    onPressed: () {
+                      final text = _modInstructionsCtrl.text.trim();
+                      if (text.isEmpty) return;
+                      ref.read(weeklyPlanProvider.notifier).modifyWeeklyPlan(
+                        planId: planId,
+                        instrucciones: text,
+                      );
+                      _modInstructionsCtrl.clear();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showEvolvePlanSheet(BuildContext context, String planId) async {
+    final perfil = ref.read(healthProfileProvider).perfil;
+    int semanasRotacion = perfil?.semanasRotacion ?? 3;
+    double porcentajeProgresion = perfil?.porcentajeProgresion ?? 5.0;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF00E5FF), size: 24),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Evolucionar Plan con IA',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.white.withOpacity(0.5), size: 20),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'La IA analiza tu historial y rota ejercicios para evitar repetición, aplicando progresión de carga según tu configuración.',
+                  style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.55), height: 1.4),
+                ),
+                const SizedBox(height: 22),
+                const Text(
+                  'PERÍODO DE ROTACIÓN',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white54, letterSpacing: 0.8),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cada cuántas semanas rotar los ejercicios repetidos',
+                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.4)),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [2, 3, 4].map((weeks) {
+                    final isSelected = semanasRotacion == weeks;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: GestureDetector(
+                          onTap: () => setSheetState(() => semanasRotacion = weeks),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF00E5FF).withOpacity(0.12)
+                                  : const Color(0xFF0F0F12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF00E5FF) : Colors.white12,
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$weeks',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? const Color(0xFF00E5FF) : Colors.white54,
+                                  ),
+                                ),
+                                Text(
+                                  weeks == 1 ? 'semana' : 'semanas',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected ? const Color(0xFF00E5FF).withOpacity(0.7) : Colors.white30,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'PROGRESIÓN DE CARGA',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white54, letterSpacing: 0.8),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6B00).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${porcentajeProgresion.round()}%',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF6B00),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  porcentajeProgresion == 0
+                      ? 'Sin incremento de carga'
+                      : 'Incremento progresivo en carga, series o reps',
+                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.4)),
+                ),
+                Slider(
+                  value: porcentajeProgresion,
+                  min: 0,
+                  max: 15,
+                  divisions: 15,
+                  activeColor: const Color(0xFFFF6B00),
+                  inactiveColor: Colors.white.withOpacity(0.1),
+                  onChanged: (v) => setSheetState(() => porcentajeProgresion = v),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.auto_fix_high_rounded, size: 20, color: Colors.black),
+                    label: const Text(
+                      'Evolucionar Ahora',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00E5FF),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      ref.read(weeklyPlanProvider.notifier).evolvePlan(
+                        planId: planId,
+                        semanasRotacion: semanasRotacion,
+                        porcentajeProgresion: porcentajeProgresion,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

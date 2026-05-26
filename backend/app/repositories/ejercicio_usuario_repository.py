@@ -44,6 +44,19 @@ def list_ejercicios_usuario(conn: Connection, usuario_id: str) -> list[Ejercicio
     return list(result.all())
 
 
+def get_ejercicio_usuario_by_nombre(
+    conn: Connection, usuario_id: str, nombre: str
+) -> EjercicioUsuario | None:
+    result = conn.execute(
+        EjercicioUsuario.__table__.select().where(
+            EjercicioUsuario.usuario_id == usuario_id,
+            EjercicioUsuario.__table__.c.nombre.ilike(nombre),
+        )
+    )
+    row = result.first()
+    return EjercicioUsuario(**row._asdict()) if row else None
+
+
 def get_ejercicio_usuario_by_id(conn: Connection, ejercicio_id: str, usuario_id: str) -> EjercicioUsuario | None:
     result = conn.execute(
         EjercicioUsuario.__table__.select()

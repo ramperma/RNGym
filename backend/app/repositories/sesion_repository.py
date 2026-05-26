@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.models.sesion_entreno import SesionEntreno, SesionEjercicioRegistro
 from app.models.ejercicio import Ejercicio
@@ -89,6 +89,53 @@ def registrar_sets(conn, sesion_id: str, usuario_id: str, ejercicio_id: str, reg
     for r in created:
         conn.refresh(r)
     return created
+
+
+def get_exercise_history_by_weeks(
+    conn,
+    usuario_id: str,
+    num_semanas: int = 3,
+) -> list[dict]:
+    """Return per-exercise stats grouped by ISO week for the last num_semanas weeks."""
+    cutoff = datetime.utcnow() - timedelta(weeks=num_semanas)
+    result = conn.execute(
+        select(
+            func.date_trunc("week", SesionEntreno.fecha_inicio).label("semana"),
+            Ejercicio.nombre.label("ejercicio_nombre"),
+            Ejercicio.equipo_necesario.label("equipo"),
+            func.max(SesionEjercicioRegistro.peso_kg).label("max_peso_kg"),
+            func.max(SesionEjercicioRegistro.repeticiones).label("max_reps"),
+            func.count(SesionEjercicioRegistro.id).label("total_sets"),
+        )
+        .join(SesionEjercicioRegistro, SesionEntreno.id == SesionEjercicioRegistro.sesion_id)
+        .join(Ejercicio, SesionEjercicioRegistro.ejercicio_id == Ejercicio.id)
+        .where(
+            SesionEntreno.usuario_id == usuario_id,
+            SesionEntreno.fecha_inicio >= cutoff,
+            SesionEntreno.estado != "cancelada",
+        )
+        .group_by(
+            func.date_trunc("week", SesionEntreno.fecha_inicio),
+            Ejercicio.nombre,
+            Ejercicio.equipo_necesario,
+        )
+        .order_by(
+            func.date_trunc("week", SesionEntreno.fecha_inicio).desc(),
+            Ejercicio.nombre,
+        )
+    )
+    rows = result.all()
+    return [
+        {
+            "semana": str(r.semana.date()) if r.semana else None,
+            "ejercicio_nombre": r.ejercicio_nombre,
+            "equipo": r.equipo,
+            "max_peso_kg": float(r.max_peso_kg) if r.max_peso_kg is not None else None,
+            "max_reps": r.max_reps,
+            "total_sets": r.total_sets,
+        }
+        for r in rows
+    ]
 
 
 def get_or_create_ejercicio_by_nombre(

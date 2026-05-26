@@ -149,6 +149,20 @@ class AIApi {
     return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<PlanSemanal> evolvePlan({
+    required String planId,
+    required int semanasRotacion,
+    required double porcentajeProgresion,
+  }) async {
+    final response = await _client.post('/ai/evolve-plan', data: {
+      'plan_id': planId,
+      'semanas_rotacion': semanasRotacion,
+      'porcentaje_progresion': porcentajeProgresion,
+    });
+    final data = response.data as Map<String, dynamic>;
+    return PlanSemanal.fromJson(data['plan_guardado'] as Map<String, dynamic>);
+  }
+
   Future<String> exerciseHelp({
     required String nombreEjercicio,
     String? grupoMuscular,

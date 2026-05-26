@@ -21,6 +21,8 @@ class PerfilSalud {
   final DateTime? fechaConsentimientoSalud;
   final DateTime? fechaUltimaActualizacion;
   final DateTime createdAt;
+  final int semanasRotacion;
+  final double porcentajeProgresion;
 
   const PerfilSalud({
     required this.id,
@@ -45,6 +47,8 @@ class PerfilSalud {
     this.fechaConsentimientoSalud,
     this.fechaUltimaActualizacion,
     required this.createdAt,
+    this.semanasRotacion = 3,
+    this.porcentajeProgresion = 5.0,
   });
 
   factory PerfilSalud.fromJson(Map<String, dynamic> json) {
@@ -77,6 +81,8 @@ class PerfilSalud {
           ? DateTime.parse(json['fecha_ultima_actualizacion'] as String)
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
+      semanasRotacion: (json['semanas_rotacion'] as int?) ?? 3,
+      porcentajeProgresion: (json['porcentaje_progresion'] as num?)?.toDouble() ?? 5.0,
     );
   }
 
@@ -99,6 +105,8 @@ class PerfilSalud {
       'objetivo_principal': objetivoPrincipal,
       'objetivo_detalle': objetivoDetalle,
       'consentimiento_salud': consentimientoSalud,
+      'semanas_rotacion': semanasRotacion,
+      'porcentaje_progresion': porcentajeProgresion,
     };
   }
 }
