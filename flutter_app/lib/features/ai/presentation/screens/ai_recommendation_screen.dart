@@ -34,6 +34,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   final List<String> _prefEquipamientoSeleccionados = [];
 
   final Set<String> _uploadingExercises = {};
+  bool _isEvolving = false;
 
   bool _personalizarProporcion = false;
   int _porcentajeMaquinasGuiadas = 50;
@@ -61,6 +62,39 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   Widget build(BuildContext context) {
     final planState = ref.watch(weeklyPlanProvider);
     final machineState = ref.watch(machineProvider);
+
+    ref.listen<WeeklyPlanState>(weeklyPlanProvider, (previous, next) {
+      if (_isEvolving && previous?.isLoading == true && !next.isLoading) {
+        setState(() => _isEvolving = false);
+        if (next.error == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Color(0xFF00C853),
+              duration: Duration(seconds: 4),
+              content: Row(
+                children: [
+                  Icon(Icons.auto_fix_high_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '¡Plan evolucionado! Máquinas rotadas y progresión aplicada.',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFFFF3366),
+              content: Text('Error al evolucionar: ${next.error}', style: const TextStyle(color: Colors.white)),
+            ),
+          );
+        }
+      }
+    });
 
     return Theme(
       data: ThemeData.dark().copyWith(
@@ -141,17 +175,41 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                     : _buildForm(context, machineState, planState),
             if (planState.isLoading && planState.plan != null)
               Container(
-                color: Colors.black54,
-                child: const Center(
+                color: Colors.black.withOpacity(0.72),
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFFF6B00)),
-                      SizedBox(height: 16),
-                      Text(
-                        'Ajustando tu rutina con IA...',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                      if (_isEvolving) ...[
+                        const SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF00E5FF),
+                            strokeWidth: 3,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF00E5FF), size: 32),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Evolucionando tu plan...',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF00E5FF)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Analizando historial y rotando\nmáquinas con progresión inteligente',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.6), height: 1.4),
+                        ),
+                      ] else ...[
+                        const CircularProgressIndicator(color: Color(0xFFFF6B00)),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Ajustando tu rutina con IA...',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1478,6 +1536,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                     ),
                     onPressed: () {
                       Navigator.of(ctx).pop();
+                      setState(() => _isEvolving = true);
                       ref.read(weeklyPlanProvider.notifier).evolvePlan(
                         planId: planId,
                         semanasRotacion: semanasRotacion,
