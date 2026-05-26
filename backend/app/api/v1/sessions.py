@@ -5,6 +5,7 @@ from app.db import get_db_connection, db_connection_context
 from app.repositories import (
     create_sesion,
     delete_sesion,
+    get_last_week_max_per_exercise,
     get_or_create_ejercicio_by_nombre,
     get_registros_by_sesion,
     get_sesion_by_id,
@@ -88,6 +89,16 @@ def create_session(
     with db_connection_context() as conn:
         sesion = create_sesion(conn, current_user["id"], data)
         return _sesion_to_response(sesion, [])
+
+
+@router.get("/last-week-history")
+def last_week_history(
+    days: int = 14,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    with db_connection_context() as conn:
+        data = get_last_week_max_per_exercise(conn, current_user["id"], days=days)
+    return {"ok": True, "history": data}
 
 
 @router.get("/{sesion_id}", response_model=SesionEntrenoResponse)

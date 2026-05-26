@@ -56,6 +56,16 @@ class SessionApi {
       'registros': registros,
     });
   }
+
+  Future<Map<String, Map<String, dynamic>>> getLastWeekHistory({int days = 14}) async {
+    try {
+      final response = await _client.get('/sessions/last-week-history', queryParameters: {'days': days});
+      final data = (response.data as Map<String, dynamic>)['history'] as Map<String, dynamic>? ?? {};
+      return data.map((k, v) => MapEntry(k, v as Map<String, dynamic>));
+    } catch (_) {
+      return {};
+    }
+  }
 }
 
 class SessionsState {

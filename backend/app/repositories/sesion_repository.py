@@ -97,32 +97,28 @@ def get_exercise_history_by_weeks(
     num_semanas: int = 3,
 ) -> list[dict]:
     """Return per-exercise stats grouped by ISO week for the last num_semanas weeks."""
+    from sqlalchemy import text as sa_text
+
     cutoff = datetime.utcnow() - timedelta(weeks=num_semanas)
     result = conn.execute(
-        select(
-            func.date_trunc("week", SesionEntreno.fecha_inicio).label("semana"),
-            Ejercicio.nombre.label("ejercicio_nombre"),
-            Ejercicio.equipo_necesario.label("equipo"),
-            func.max(SesionEjercicioRegistro.peso_kg).label("max_peso_kg"),
-            func.max(SesionEjercicioRegistro.repeticiones).label("max_reps"),
-            func.count(SesionEjercicioRegistro.id).label("total_sets"),
-        )
-        .join(SesionEjercicioRegistro, SesionEntreno.id == SesionEjercicioRegistro.sesion_id)
-        .join(Ejercicio, SesionEjercicioRegistro.ejercicio_id == Ejercicio.id)
-        .where(
-            SesionEntreno.usuario_id == usuario_id,
-            SesionEntreno.fecha_inicio >= cutoff,
-            SesionEntreno.estado != "cancelada",
-        )
-        .group_by(
-            func.date_trunc("week", SesionEntreno.fecha_inicio),
-            Ejercicio.nombre,
-            Ejercicio.equipo_necesario,
-        )
-        .order_by(
-            func.date_trunc("week", SesionEntreno.fecha_inicio).desc(),
-            Ejercicio.nombre,
-        )
+        sa_text("""
+            SELECT
+                date_trunc('week', se.fecha_inicio) AS semana,
+                e.nombre AS ejercicio_nombre,
+                e.equipo_necesario AS equipo,
+                MAX(ser.peso_kg) AS max_peso_kg,
+                MAX(ser.repeticiones) AS max_reps,
+                COUNT(ser.id) AS total_sets
+            FROM sesiones_entreno se
+            JOIN sesion_ejercicio_registros ser ON se.id = ser.sesion_id
+            JOIN ejercicios e ON ser.ejercicio_id = e.id
+            WHERE se.usuario_id = :usuario_id
+              AND se.fecha_inicio >= :cutoff
+              AND se.estado != 'cancelada'
+            GROUP BY date_trunc('week', se.fecha_inicio), e.nombre, e.equipo_necesario
+            ORDER BY date_trunc('week', se.fecha_inicio) DESC, e.nombre
+        """),
+        {"usuario_id": usuario_id, "cutoff": cutoff},
     )
     rows = result.all()
     return [
@@ -171,6 +167,41 @@ def get_or_create_ejercicio_by_nombre(
     conn.commit()
     conn.refresh(created)
     return created
+
+
+def get_last_week_max_per_exercise(
+    conn,
+    usuario_id: str,
+    days: int = 14,
+) -> dict[str, dict]:
+    """Return {exercise_name: {max_weight_kg, max_reps}} for completed sessions in the last `days` days."""
+    from sqlalchemy import text as sa_text
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    result = conn.execute(
+        sa_text("""
+            SELECT
+                e.nombre AS ejercicio_nombre,
+                MAX(ser.peso_kg) AS max_peso_kg,
+                MAX(ser.repeticiones) AS max_reps
+            FROM sesiones_entreno se
+            JOIN sesion_ejercicio_registros ser ON se.id = ser.sesion_id
+            JOIN ejercicios e ON ser.ejercicio_id = e.id
+            WHERE se.usuario_id = :usuario_id
+              AND se.fecha_inicio >= :cutoff
+              AND se.estado = 'completada'
+              AND ser.completado = true
+            GROUP BY e.nombre
+        """),
+        {"usuario_id": usuario_id, "cutoff": cutoff},
+    )
+    return {
+        r.ejercicio_nombre: {
+            "max_peso_kg": float(r.max_peso_kg) if r.max_peso_kg is not None else None,
+            "max_reps": r.max_reps,
+        }
+        for r in result.all()
+    }
 
 
 def get_registros_by_sesion(conn, sesion_id: str) -> list[dict]:

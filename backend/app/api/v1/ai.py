@@ -1082,6 +1082,40 @@ async def modify_weekly_plan(
         )
 
 
+def _slim_plan_for_prompt(plan_json: dict) -> dict:
+    """Strip photo URLs and verbose fields to reduce prompt tokens."""
+    slim_dias = []
+    for dia in plan_json.get("dias", []):
+        slim_bloques = []
+        for bloque in dia.get("bloques", []):
+            slim_ejercicios = []
+            for ej in bloque.get("ejercicios", []):
+                slim_ejercicios.append({
+                    "nombre_ejercicio": ej.get("nombre_ejercicio"),
+                    "grupo_muscular": ej.get("grupo_muscular"),
+                    "series": ej.get("series"),
+                    "repeticiones": ej.get("repeticiones"),
+                    "descanso_segundos": ej.get("descanso_segundos"),
+                    "rir_o_rpe": ej.get("rir_o_rpe"),
+                    "machine_id": ej.get("machine_id"),
+                    "machine_nombre": ej.get("machine_nombre"),
+                })
+            slim_bloques.append({
+                "tipo": bloque.get("tipo"),
+                "nombre": bloque.get("nombre"),
+                "duracion_minutos": bloque.get("duracion_minutos"),
+                "ejercicios": slim_ejercicios,
+            })
+        slim_dias.append({
+            "dia_semana": dia.get("dia_semana"),
+            "nombre_dia": dia.get("nombre_dia"),
+            "tipo": dia.get("tipo"),
+            "bloques": slim_bloques,
+            "tiempo_total_estimado_minutos": dia.get("tiempo_total_estimado_minutos"),
+        })
+    return {"dias": slim_dias}
+
+
 def _build_evolve_plan_prompt(
     plan_json: dict,
     perfil,
@@ -1126,7 +1160,7 @@ CONFIGURACIÓN DE EVOLUCIÓN:
 - Porcentaje de progresión: {porcentaje_progresion}% (incremento aproximado en carga, repeticiones o series)
 
 PLAN ACTUAL A EVOLUCIONAR:
-{json.dumps(plan_json, indent=2, ensure_ascii=False)}
+{json.dumps(_slim_plan_for_prompt(plan_json), ensure_ascii=False)}
 
 INSTRUCCIONES ESTRICTAS:
 1. Analiza qué ejercicios del plan actual aparecen en el historial REPETIDAMENTE durante las últimas {semanas_rotacion} semanas sin variación.
@@ -1254,7 +1288,7 @@ async def evolve_weekly_plan(
             user_api_key=user_key,
             user_id=current_user["id"],
             tipo_consulta="weekly_plan",
-            max_tokens=4096,
+            max_tokens=8192,
             temperature=0.7,
         )
 
@@ -1325,6 +1359,8 @@ async def evolve_weekly_plan(
             modelo=ai_client._resolve_model(provider, model),
             modo=mode,
         )
+    except HTTPException:
+        raise
     except AIError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

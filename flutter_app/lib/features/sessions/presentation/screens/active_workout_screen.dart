@@ -167,23 +167,39 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     }
   }
 
-  void _loadDayPlan(PlanDia dayPlan) {
+  Future<void> _loadDayPlan(PlanDia dayPlan) async {
+    // Fetch previous week's max weights/reps (fire-and-forget-safe — returns {} on error)
+    final sessionApi = ref.read(sessionApiProvider);
+    final history = await sessionApi.getLastWeekHistory();
+
+    if (!mounted) return;
     setState(() {
       _selectedDayPlan = dayPlan;
       _workoutRecords.clear();
       _elapsedSeconds = 0;
       _workoutStartTime = DateTime.now();
 
-      // Initialize sets for each exercise in this day
       for (var bloque in dayPlan.bloques) {
         for (var ex in bloque.ejercicios) {
           final targetReps = int.tryParse(ex.repeticiones.split('-').first) ?? 10;
+
+          // Try to find last-week data using fuzzy name matching
+          double defaultWeight = 20.0;
+          int defaultReps = targetReps;
+          final histEntry = _findHistoryEntry(history, ex.nombreEjercicio);
+          if (histEntry != null) {
+            final w = histEntry['max_peso_kg'];
+            final r = histEntry['max_reps'];
+            if (w != null) defaultWeight = (w as num).toDouble();
+            if (r != null) defaultReps = r as int;
+          }
+
           _workoutRecords[ex.nombreEjercicio] = List.generate(
             ex.series,
             (index) => WorkoutSetRecord(
               setIndex: index + 1,
-              weight: 20.0,
-              reps: targetReps,
+              weight: defaultWeight,
+              reps: defaultReps,
               isCompleted: false,
             ),
           );
@@ -195,6 +211,32 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       }
     });
     _saveWorkoutState();
+  }
+
+  Map<String, dynamic>? _findHistoryEntry(Map<String, Map<String, dynamic>> history, String exerciseName) {
+    if (history.isEmpty) return null;
+    // 1) Exact normalised match
+    final target = _normalizeExerciseName(exerciseName);
+    for (final entry in history.entries) {
+      if (_normalizeExerciseName(entry.key) == target) return entry.value;
+    }
+    // 2) Inclusion match
+    for (final entry in history.entries) {
+      final candidate = _normalizeExerciseName(entry.key);
+      if (candidate.contains(target) || target.contains(candidate)) return entry.value;
+    }
+    // 3) Token similarity (threshold 0.5)
+    String? bestKey;
+    var bestScore = 0.0;
+    for (final entry in history.entries) {
+      final score = _tokenSimilarity(exerciseName, entry.key);
+      if (score > bestScore) {
+        bestScore = score;
+        bestKey = entry.key;
+      }
+    }
+    if (bestKey != null && bestScore >= 0.5) return history[bestKey];
+    return null;
   }
 
   void _restoreDayPlan(
