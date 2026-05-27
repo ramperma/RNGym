@@ -27,6 +27,8 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   String _nivelExperiencia = 'intermedio';
   final List<String> _equiposDisponibles = ['barra', 'mancuernas', 'polea', 'leg_press', 'smith'];
   final List<String> _selectedMachines = [];
+  bool _esEnCasa = false;
+  final List<String> _materialesCasaSeleccionados = ['sin_material'];
 
   final List<String> _diasSemanaNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   final List<String> _diasSeleccionados = [];
@@ -289,6 +291,94 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       onChanged: (v) => setState(() => _objetivo = v!),
                     ),
                     const SizedBox(height: 20),
+                    const Text('Entorno de entrenamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _esEnCasa = false;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: !_esEnCasa ? const Color(0xFFFF6B00).withOpacity(0.08) : const Color(0xFF0F0F12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: !_esEnCasa ? const Color(0xFFFF6B00) : Colors.white.withOpacity(0.05),
+                                  width: !_esEnCasa ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.fitness_center_rounded,
+                                    color: !_esEnCasa ? const Color(0xFFFF6B00) : Colors.white60,
+                                    size: 26,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Gimnasio',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: !_esEnCasa ? Colors.white : Colors.white60,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _esEnCasa = true;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: _esEnCasa ? const Color(0xFF00E5FF).withOpacity(0.08) : const Color(0xFF0F0F12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _esEnCasa ? const Color(0xFF00E5FF) : Colors.white.withOpacity(0.05),
+                                  width: _esEnCasa ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.home_rounded,
+                                    color: _esEnCasa ? const Color(0xFF00E5FF) : Colors.white60,
+                                    size: 26,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'En Casa',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _esEnCasa ? Colors.white : Colors.white60,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -432,145 +522,190 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-                    const Text('Preferencia de equipamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        '🤖 Máquinas guiadas (Selectorizadas)',
-                        '⛓️ Poleas regulables',
-                        '🏋️ Peso libre (Mancuernas / barras)',
-                      ].map((pref) {
-                        final isSelected = _prefEquipamientoSeleccionados.contains(pref);
-                        return FilterChip(
-                          label: Text(pref),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFFF6B00),
-                          backgroundColor: const Color(0xFF0F0F12),
-                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    if (!_esEnCasa) ...[
+                      const Text('Preferencia de equipamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          '🤖 Máquinas guiadas (Selectorizadas)',
+                          '⛓️ Poleas regulables',
+                          '🏋️ Peso libre (Mancuernas / barras)',
+                        ].map((pref) {
+                          final isSelected = _prefEquipamientoSeleccionados.contains(pref);
+                          return FilterChip(
+                            label: Text(pref),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFFFF6B00),
+                            backgroundColor: const Color(0xFF0F0F12),
+                            side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _prefEquipamientoSeleccionados.add(pref);
+                                } else {
+                                  _prefEquipamientoSeleccionados.remove(pref);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Distribución de equipamiento',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Define la proporción de tipos de ejercicios',
+                                style: TextStyle(fontSize: 11, color: Colors.white38),
+                              ),
+                            ],
                           ),
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _prefEquipamientoSeleccionados.add(pref);
-                              } else {
-                                _prefEquipamientoSeleccionados.remove(pref);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    const Divider(color: Colors.white10),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Distribución de equipamiento',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Define la proporción de tipos de ejercicios',
-                              style: TextStyle(fontSize: 11, color: Colors.white38),
-                            ),
-                          ],
-                        ),
-                        Switch.adaptive(
-                          value: _personalizarProporcion,
-                          activeColor: const Color(0xFFFF6B00),
-                          onChanged: (val) {
-                            setState(() {
-                              _personalizarProporcion = val;
-                            });
-                          },
+                          Switch.adaptive(
+                            value: _personalizarProporcion,
+                            activeColor: const Color(0xFFFF6B00),
+                            onChanged: (val) {
+                              setState(() {
+                                _personalizarProporcion = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_personalizarProporcion) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F0F12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF), size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Máquinas Guiadas / Poleas', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '$_porcentajeMaquinasGuiadas%',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00E5FF), fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: _porcentajeMaquinasGuiadas.toDouble(),
+                                min: 0,
+                                max: 100,
+                                divisions: 20,
+                                activeColor: const Color(0xFF00E5FF),
+                                inactiveColor: Colors.white.withOpacity(0.05),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _porcentajeMaquinasGuiadas = val.round();
+                                    _porcentajePesoLibre = 100 - _porcentajeMaquinasGuiadas;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.fitness_center_rounded, color: Color(0xFFFF6B00), size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Peso Libre / Mancuernas / Barras', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '$_porcentajePesoLibre%',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6B00), fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: _porcentajePesoLibre.toDouble(),
+                                min: 0,
+                                max: 100,
+                                divisions: 20,
+                                activeColor: const Color(0xFFFF6B00),
+                                inactiveColor: Colors.white.withOpacity(0.05),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _porcentajePesoLibre = val.round();
+                                    _porcentajeMaquinasGuiadas = 100 - _porcentajePesoLibre;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                    if (_personalizarProporcion) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F0F12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF), size: 16),
-                                    SizedBox(width: 6),
-                                    Text('Máquinas Guiadas / Poleas', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                                  ],
-                                ),
-                                Text(
-                                  '$_porcentajeMaquinasGuiadas%',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00E5FF), fontSize: 13),
-                                ),
-                              ],
+                      const SizedBox(height: 20),
+                    ],
+                    if (_esEnCasa) ...[
+                      const Text('Equipamiento casero disponible', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          {'id': 'sin_material', 'label': '⚡ Sin material (Peso corporal)'},
+                          {'id': 'bandas_resistencia', 'label': '🎗️ Bandas de resistencia'},
+                          {'id': 'garrafas_agua', 'label': '🧴 Garrafas de agua (Peso)'},
+                          {'id': 'sillas', 'label': '🪑 Silla / Soporte estable'},
+                        ].map((material) {
+                          final mId = material['id']!;
+                          final mLabel = material['label']!;
+                          final isSelected = _materialesCasaSeleccionados.contains(mId);
+                          return FilterChip(
+                            label: Text(mLabel),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF00E5FF),
+                            backgroundColor: const Color(0xFF0F0F12),
+                            side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
-                            Slider(
-                              value: _porcentajeMaquinasGuiadas.toDouble(),
-                              min: 0,
-                              max: 100,
-                              divisions: 20,
-                              activeColor: const Color(0xFF00E5FF),
-                              inactiveColor: Colors.white.withOpacity(0.05),
-                              onChanged: (val) {
-                                setState(() {
-                                  _porcentajeMaquinasGuiadas = val.round();
-                                  _porcentajePesoLibre = 100 - _porcentajeMaquinasGuiadas;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.fitness_center_rounded, color: Color(0xFFFF6B00), size: 16),
-                                    SizedBox(width: 6),
-                                    Text('Peso Libre / Mancuernas / Barras', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                                  ],
-                                ),
-                                Text(
-                                  '$_porcentajePesoLibre%',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6B00), fontSize: 13),
-                                ),
-                              ],
-                            ),
-                            Slider(
-                              value: _porcentajePesoLibre.toDouble(),
-                              min: 0,
-                              max: 100,
-                              divisions: 20,
-                              activeColor: const Color(0xFFFF6B00),
-                              inactiveColor: Colors.white.withOpacity(0.05),
-                              onChanged: (val) {
-                                setState(() {
-                                  _porcentajePesoLibre = val.round();
-                                  _porcentajeMaquinasGuiadas = 100 - _porcentajePesoLibre;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _materialesCasaSeleccionados.add(mId);
+                                } else {
+                                  if (mId == 'sin_material' && _materialesCasaSeleccionados.length == 1) {
+                                    return;
+                                  }
+                                  _materialesCasaSeleccionados.remove(mId);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
+                      const SizedBox(height: 20),
                     ],
                     const SizedBox(height: 20),
                     const Text('Notas adicionales o médicas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
@@ -589,86 +724,88 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       style: const TextStyle(fontSize: 14, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF19191F),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.15)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.auto_awesome, color: const Color(0xFFFF6B00), size: 18),
-                                    const SizedBox(width: 8),
-                                    const Expanded(
-                                      child: Text(
-                                        'Tener en cuenta mis máquinas',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                    if (!_esEnCasa) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF19191F),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.15)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.auto_awesome, color: const Color(0xFFFF6B00), size: 18),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Tener en cuenta mis máquinas',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Si está activado, la IA integrará obligatoriamente tus máquinas del gym.',
-                                  style: TextStyle(fontSize: 11, color: Colors.white54),
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Si está activado, la IA integrará obligatoriamente tus máquinas del gym.',
+                                    style: TextStyle(fontSize: 11, color: Colors.white54),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Switch.adaptive(
-                            value: _usarMisMaquinas,
-                            activeColor: const Color(0xFFFF6B00),
-                            onChanged: (val) {
-                              setState(() {
-                                _usarMisMaquinas = val;
-                              });
-                            },
-                          ),
-                        ],
+                            Switch.adaptive(
+                              value: _usarMisMaquinas,
+                              activeColor: const Color(0xFFFF6B00),
+                              onChanged: (val) {
+                                setState(() {
+                                  _usarMisMaquinas = val;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (machineState.machines.isNotEmpty) ...[
-                      const Divider(color: Colors.white10),
-                      const SizedBox(height: 12),
-                      const Text('Tus máquinas guardadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: machineState.machines.map((m) {
-                          final selected = _selectedMachines.contains(m.id);
-                          return FilterChip(
-                            label: Text(m.nombre, style: TextStyle(color: selected ? Colors.black : Colors.white70, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
-                            selected: selected,
-                            selectedColor: const Color(0xFFFF6B00),
-                            backgroundColor: const Color(0xFF0F0F12),
-                            side: BorderSide(color: selected ? Colors.transparent : Colors.white12),
-                            onSelected: (v) {
-                              setState(() {
-                                if (v) {
-                                  _selectedMachines.add(m.id);
-                                } else {
-                                  _selectedMachines.remove(m.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
+                      if (machineState.machines.isNotEmpty) ...[
+                        const Divider(color: Colors.white10),
+                        const SizedBox(height: 12),
+                        const Text('Tus máquinas guardadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: machineState.machines.map((m) {
+                            final selected = _selectedMachines.contains(m.id);
+                            return FilterChip(
+                              label: Text(m.nombre, style: TextStyle(color: selected ? Colors.black : Colors.white70, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                              selected: selected,
+                              selectedColor: const Color(0xFFFF6B00),
+                              backgroundColor: const Color(0xFF0F0F12),
+                              side: BorderSide(color: selected ? Colors.transparent : Colors.white12),
+                              onSelected: (v) {
+                                setState(() {
+                                  if (v) {
+                                    _selectedMachines.add(m.id);
+                                  } else {
+                                    _selectedMachines.remove(m.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 16),
                     ],
-                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       height: 52,
@@ -1583,15 +1720,16 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
       diasPorSemana: _diasPorSemana,
       duracionMaxMinutos: _duracionMax,
       nivelExperiencia: _nivelExperiencia,
-      equipoDisponible: _equiposDisponibles,
-      maquinasUsuarioIds: _usarMisMaquinas ? allMachineIds : const [],
+      equipoDisponible: _esEnCasa ? _materialesCasaSeleccionados : _equiposDisponibles,
+      maquinasUsuarioIds: (_usarMisMaquinas && !_esEnCasa) ? allMachineIds : const [],
       lesionesOLimitaciones: _lesionesSeleccionadas,
       notasAdicionales: _notasAdicionalesCtrl.text.trim().isEmpty ? null : _notasAdicionalesCtrl.text.trim(),
       diasEntrenoSeleccionados: _diasSeleccionados,
-      preferenciasEquipamiento: _prefEquipamientoSeleccionados,
-      porcentajeMaquinasGuiadas: _personalizarProporcion ? _porcentajeMaquinasGuiadas : null,
-      porcentajePesoLibre: _personalizarProporcion ? _porcentajePesoLibre : null,
+      preferenciasEquipamiento: _esEnCasa ? const [] : _prefEquipamientoSeleccionados,
+      porcentajeMaquinasGuiadas: (_personalizarProporcion && !_esEnCasa) ? _porcentajeMaquinasGuiadas : null,
+      porcentajePesoLibre: (_personalizarProporcion && !_esEnCasa) ? _porcentajePesoLibre : null,
       minEjerciciosPorSesion: _minEjerciciosPorSesion,
+      esEnCasa: _esEnCasa,
     );
   }
 

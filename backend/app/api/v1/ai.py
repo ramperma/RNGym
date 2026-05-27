@@ -71,16 +71,41 @@ def _build_weekly_plan_prompt(
             ratio_str += f"  - Porcentaje aproximado de peso libre (mancuernas / barras / discos): {req.porcentaje_peso_libre}%\n"
         ratio_str += "  Debes diseñar la selección de ejercicios de los bloques principales intentando cumplir rigurosamente con esta proporción.\n"
 
-    prompt = f"""Eres un entrenador personal experto con años de experiencia diseñando planes semanales progresivos para gyms.
+    equipos_traducidos = []
+    for eq in req.equipo_disponible:
+        if eq == "sin_material":
+            equipos_traducidos.append("Sin material (únicamente peso corporal/calistenia)")
+        elif eq == "bandas_resistencia":
+            equipos_traducidos.append("Bandas de goma / elásticas de resistencia")
+        elif eq == "garrafas_agua":
+            equipos_traducidos.append("Garrafas de agua o botellas para usar como peso")
+        elif eq == "sillas":
+            equipos_traducidos.append("Sillas o soportes estables del hogar")
+        else:
+            equipos_traducidos.append(eq)
+    equipo_str = ", ".join(equipos_traducidos)
+
+    tipo_entrenador = "para entrenar en casa" if getattr(req, "es_en_casa", False) else "para gyms"
+    instrucciones_casa = ""
+    if getattr(req, "es_en_casa", False):
+        instrucciones_casa = (
+            "\nENTORNO DE ENTRENAMIENTO: EN CASA (MANDATORIO).\n"
+            "El usuario entrena en casa con el material seleccionado. "
+            "Debes elegir EXCLUSIVAMENTE ejercicios que se puedan realizar en casa (usando calistenia, peso corporal, o el material casero especificado: bandas de resistencia, garrafas de agua para peso, sillas para soporte). "
+            "Queda TOTALMENTE PROHIBIDO incluir ejercicios con máquinas de gimnasio complejas (smith, leg press, polea, poleas regulables) o equipamiento comercial pesado (barras olímpicas, etc.). "
+            "Adapta las variaciones de los ejercicios para que sean realizables en casa de forma segura, retadora y progresiva.\n"
+        )
+
+    prompt = f"""Eres un entrenador personal experto con años de experiencia diseñando planes semanales progresivos {tipo_entrenador}.
     
 {perfil_str}
 {maquinas_str}
-
+{instrucciones_casa}
 Datos de la solicitud:
 - Objetivo: {req.objetivo}
 - Días de entrenamiento objetivo: {req.dias_por_semana}
 {dias_sel_str}{pref_eq_str}- Duración máxima por sesión: {req.duracion_max_minutos} minutos
-- Equipo disponible: {', '.join(req.equipo_disponible)}
+- Equipo disponible: {equipo_str}
 - Nivel de experiencia: {req.nivel_experiencia}
 - Limitaciones: {', '.join(req.lesiones_o_limitaciones) or 'ninguna'}{ratio_str}
 - Notas adicionales: {req.notas_adicionales or 'ninguna'}
@@ -239,16 +264,41 @@ def _build_weekly_plan_single_day_prompt(
             ratio_str += f"  - Porcentaje aproximado de peso libre (mancuernas / barras / discos): {req.porcentaje_peso_libre}%\n"
         ratio_str += "  Debes diseñar la selección de ejercicios del bloque principal intentando cumplir rigurosamente con esta proporción.\n"
 
-    prompt = f"""Eres un entrenador personal experto con años de experiencia diseñando planes semanales progresivos para gyms.
+    equipos_traducidos = []
+    for eq in req.equipo_disponible:
+        if eq == "sin_material":
+            equipos_traducidos.append("Sin material (únicamente peso corporal/calistenia)")
+        elif eq == "bandas_resistencia":
+            equipos_traducidos.append("Bandas de goma / elásticas de resistencia")
+        elif eq == "garrafas_agua":
+            equipos_traducidos.append("Garrafas de agua o botellas para usar como peso")
+        elif eq == "sillas":
+            equipos_traducidos.append("Sillas o soportes estables del hogar")
+        else:
+            equipos_traducidos.append(eq)
+    equipo_str = ", ".join(equipos_traducidos)
+
+    tipo_entrenador = "para entrenar en casa" if getattr(req, "es_en_casa", False) else "para gyms"
+    instrucciones_casa = ""
+    if getattr(req, "es_en_casa", False):
+        instrucciones_casa = (
+            "\nENTORNO DE ENTRENAMIENTO: EN CASA (MANDATORIO).\n"
+            "El usuario entrena en casa con el material seleccionado. "
+            "Debes elegir EXCLUSIVAMENTE ejercicios que se puedan realizar en casa (usando calistenia, peso corporal, o el material casero especificado: bandas de resistencia, garrafas de agua para peso, sillas para soporte). "
+            "Queda TOTALMENTE PROHIBIDO incluir ejercicios con máquinas de gimnasio complejas (smith, leg press, polea, poleas regulables) o equipamiento comercial pesado (barras olímpicas, etc.). "
+            "Adapta las variaciones de los ejercicios para que sean realizables en casa de forma segura, retadora y progresiva.\n"
+        )
+
+    prompt = f"""Eres un entrenador personal experto con años de experiencia diseñando planes semanales progresivos {tipo_entrenador}.
 
 {perfil_str}
 {maquinas_str}
-
+{instrucciones_casa}
 Datos de la solicitud:
 - Objetivo general: {req.objetivo}
 - Nivel de experiencia: {req.nivel_experiencia}
 - Duración máxima por sesión: {req.duracion_max_minutos} minutos
-- Equipo disponible: {', '.join(req.equipo_disponible)}
+- Equipo disponible: {equipo_str}
 - Limitaciones/Lesiones: {', '.join(req.lesiones_o_limitaciones) or 'ninguna'}{ratio_str}
 - Notas adicionales: {req.notas_adicionales or 'ninguna'}
 
