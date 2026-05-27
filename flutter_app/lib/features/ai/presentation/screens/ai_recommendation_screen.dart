@@ -2157,7 +2157,9 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
       ),
       builder: (ctx) => Consumer(
         builder: (ctx, sheetRef, _) {
-          final currentPlanes = sheetRef.watch(weeklyPlanProvider).planes;
+          final planState = sheetRef.watch(weeklyPlanProvider);
+          final currentPlanes = planState.planes;
+          final activePlanId = planState.plan?.id;
           return DraggableScrollableSheet(
             initialChildSize: 0.6,
             minChildSize: 0.4,
@@ -2203,18 +2205,19 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                           itemCount: currentPlanes.length,
                           itemBuilder: (_, i) {
                             final p = currentPlanes[i];
+                            final isActive = p.id == activePlanId;
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
-                                color: p.activo
+                                color: isActive
                                     ? const Color(0xFF1A2A1A)
                                     : const Color(0xFF1C1C24),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: p.activo
+                                  color: isActive
                                       ? const Color(0xFF4CAF50).withOpacity(0.5)
                                       : Colors.white.withOpacity(0.05),
-                                  width: p.activo ? 1.5 : 1,
+                                  width: isActive ? 1.5 : 1,
                                 ),
                               ),
                               child: Padding(
@@ -2223,7 +2226,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                                   children: [
                                     // Botón predeterminar (estrella)
                                     GestureDetector(
-                                      onTap: p.activo
+                                      onTap: isActive
                                           ? null
                                           : () async {
                                               await sheetRef
@@ -2242,19 +2245,19 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                                               }
                                             },
                                       child: Tooltip(
-                                        message: p.activo ? 'Plan predeterminado' : 'Establecer como predeterminado',
+                                        message: isActive ? 'Plan predeterminado' : 'Establecer como predeterminado',
                                         child: Container(
                                           width: 40,
                                           height: 40,
                                           decoration: BoxDecoration(
-                                            color: p.activo
+                                            color: isActive
                                                 ? const Color(0xFF4CAF50).withOpacity(0.15)
                                                 : Colors.white.withOpacity(0.05),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Icon(
-                                            p.activo ? Icons.star_rounded : Icons.star_outline_rounded,
-                                            color: p.activo ? const Color(0xFF4CAF50) : Colors.white30,
+                                            isActive ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            color: isActive ? const Color(0xFF4CAF50) : Colors.white30,
                                             size: 22,
                                           ),
                                         ),
@@ -2284,7 +2287,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                if (p.activo) ...[
+                                                if (isActive) ...[
                                                   const SizedBox(width: 6),
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
