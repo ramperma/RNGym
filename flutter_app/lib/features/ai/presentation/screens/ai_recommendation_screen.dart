@@ -2150,81 +2150,208 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   void _showPlansSheet(BuildContext context, List<PlanSemanal> planes) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF131317),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      // Consumer allows reactive updates when plans are deleted inside the sheet
       builder: (ctx) => Consumer(
         builder: (ctx, sheetRef, _) {
           final currentPlanes = sheetRef.watch(weeklyPlanProvider).planes;
-          return Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('Planes Semanales Guardados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              const Divider(color: Colors.white10),
-              Expanded(
-                child: currentPlanes.isEmpty
-                    ? const Center(child: Text('No hay planes guardados', style: TextStyle(color: Colors.white30)))
-                    : ListView.builder(
-                        itemCount: currentPlanes.length,
-                        itemBuilder: (_, i) {
-                          final p = currentPlanes[i];
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1C1C24),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.04)),
-                            ),
-                            child: ListTile(
-                              leading: const Icon(Icons.event_note_rounded, color: Color(0xFFFF8C00)),
-                              title: Text(p.nombre, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                              subtitle: Text('${p.objetivo.toUpperCase()} · ${p.nivel}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF3366)),
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                      backgroundColor: const Color(0xFF15151B),
-                                      title: const Text('¿Eliminar plan?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                      content: const Text('Esta acción eliminará permanentemente esta planificación semanal.', style: TextStyle(color: Colors.white70)),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar', style: TextStyle(color: Colors.white30))),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(c, true),
-                                          child: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF3366), fontWeight: FontWeight.bold)),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await sheetRef.read(weeklyPlanProvider.notifier).deleteWeeklyPlan(p.id);
-                                    // List updates reactively via Consumer — no need to pop
-                                    if (ctx.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          backgroundColor: Color(0xFFFF3366),
-                                          content: Text('Plan semanal eliminado.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                sheetRef.read(weeklyPlanProvider.notifier).loadPlan(p.id);
-                              },
-                            ),
-                          );
-                        },
+          return DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.92,
+            expand: false,
+            builder: (_, scrollCtrl) => Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.layers_rounded, color: Color(0xFFFF6B00), size: 22),
+                      SizedBox(width: 10),
+                      Text(
+                        'Mis Planes Semanales',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  child: Text(
+                    'Toca la estrella ★ para establecer un plan como predeterminado en el entrenamiento.',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.45)),
+                  ),
+                ),
+                const Divider(color: Colors.white10),
+                Expanded(
+                  child: currentPlanes.isEmpty
+                      ? const Center(child: Text('No hay planes guardados', style: TextStyle(color: Colors.white30)))
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          itemCount: currentPlanes.length,
+                          itemBuilder: (_, i) {
+                            final p = currentPlanes[i];
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: p.activo
+                                    ? const Color(0xFF1A2A1A)
+                                    : const Color(0xFF1C1C24),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: p.activo
+                                      ? const Color(0xFF4CAF50).withOpacity(0.5)
+                                      : Colors.white.withOpacity(0.05),
+                                  width: p.activo ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    // Botón predeterminar (estrella)
+                                    GestureDetector(
+                                      onTap: p.activo
+                                          ? null
+                                          : () async {
+                                              await sheetRef
+                                                  .read(weeklyPlanProvider.notifier)
+                                                  .activateWeeklyPlan(p.id);
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    backgroundColor: const Color(0xFF4CAF50),
+                                                    content: Text(
+                                                      '«${p.nombre}» es ahora tu plan predeterminado ⚡',
+                                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      child: Tooltip(
+                                        message: p.activo ? 'Plan predeterminado' : 'Establecer como predeterminado',
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: p.activo
+                                                ? const Color(0xFF4CAF50).withOpacity(0.15)
+                                                : Colors.white.withOpacity(0.05),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            p.activo ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            color: p.activo ? const Color(0xFF4CAF50) : Colors.white30,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Info del plan
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.pop(ctx);
+                                          sheetRef.read(weeklyPlanProvider.notifier).loadPlan(p.id);
+                                        },
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    p.nombre,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (p.activo) ...[
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF4CAF50).withOpacity(0.15),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                      border: Border.all(color: const Color(0xFF4CAF50), width: 0.8),
+                                                    ),
+                                                    child: const Text(
+                                                      'PREDETERMINADO',
+                                                      style: TextStyle(color: Color(0xFF4CAF50), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${p.objetivo.toUpperCase()} · ${p.nivel} · ${p.diasEntrenoObjetivo} días/sem',
+                                              style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    // Botón eliminar
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF3366), size: 20),
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            backgroundColor: const Color(0xFF15151B),
+                                            title: const Text('¿Eliminar plan?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                            content: const Text('Esta acción eliminará permanentemente esta planificación semanal.', style: TextStyle(color: Colors.white70)),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar', style: TextStyle(color: Colors.white30))),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(c, true),
+                                                child: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF3366), fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await sheetRef.read(weeklyPlanProvider.notifier).deleteWeeklyPlan(p.id);
+                                          if (ctx.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                backgroundColor: Color(0xFFFF3366),
+                                                content: Text('Plan semanal eliminado.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         },
       ),

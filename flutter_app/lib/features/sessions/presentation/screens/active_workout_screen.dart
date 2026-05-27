@@ -153,18 +153,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       final currentWeekdayIndex = DateTime.now().weekday - 1; // 0 = Lunes, ..., 6 = Domingo
       final workoutDays = currentPlan.planJson.dias.where((d) => d.tipo == 'workout').toList();
 
-      PlanDia? defaultDay;
-
-      // 0. Último día seleccionado manualmente para este plan
-      final prefs = await SharedPreferences.getInstance();
-      final lastPlanId = prefs.getString('${_prefsPrefix}last_plan_id');
-      final lastDiaSemana = prefs.getInt('${_prefsPrefix}last_dia_semana');
-      if (lastPlanId == currentPlan.id && lastDiaSemana != null) {
-        defaultDay = currentPlan.planJson.dias.where((d) => d.diaSemana == lastDiaSemana).firstOrNull;
-      }
-
       // 1. Hoy si es día de entreno
-      defaultDay ??= workoutDays.where((d) => d.diaSemana == currentWeekdayIndex).firstOrNull;
+      PlanDia? defaultDay = workoutDays.where((d) => d.diaSemana == currentWeekdayIndex).firstOrNull;
 
       // 2. Próximo día de entreno más cercano (hasta 7 días vista)
       if (defaultDay == null) {
@@ -184,14 +174,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
   Future<void> _loadDayPlan(PlanDia dayPlan) async {
     if (!mounted) return;
-
-    // Persistir la selección para que sea el default la próxima vez
-    final plan = ref.read(weeklyPlanProvider).plan;
-    if (plan != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('${_prefsPrefix}last_plan_id', plan.id);
-      await prefs.setInt('${_prefsPrefix}last_dia_semana', dayPlan.diaSemana);
-    }
 
     // 1. Cargar el plan del día inmediatamente para que el cambio de interfaz sea instantáneo
     setState(() {
