@@ -118,6 +118,11 @@ class AIApi {
     await _client.delete('/ai/plans/$planId');
   }
 
+  Future<PlanSemanal> updateWeeklyPlanName(String planId, String newName) async {
+    final response = await _client.put('/ai/plans/$planId', data: {'nombre': newName});
+    return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<PlanSemanal> activateWeeklyPlan(String planId) async {
     final response = await _client.post('/ai/plans/$planId/activate');
     return PlanSemanal.fromJson(response.data as Map<String, dynamic>);

@@ -49,7 +49,9 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     super.initState();
     Future.microtask(() {
       ref.read(machineProvider.notifier).loadMachines();
-      ref.read(weeklyPlanProvider.notifier).loadPlans();
+      if (ref.read(weeklyPlanProvider).planes.isEmpty) {
+        ref.read(weeklyPlanProvider.notifier).loadPlans();
+      }
     });
   }
 
@@ -168,7 +170,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                             CircularProgressIndicator(color: Color(0xFFFF6B00)),
                             SizedBox(height: 16),
                             Text(
-                              'Diseñando tu plan con IA...',
+                              'Cargando planes de entrenamiento...',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white70),
                             ),
                           ],
@@ -891,6 +893,13 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.edit_rounded, color: Color(0xFFFF6B00), size: 16),
+                          tooltip: 'Renombrar Plan Semanal',
+                          onPressed: () => _showRenamePlanDialog(plan),
                         ),
                         const SizedBox(width: 8),
                         if (plan.activo)
@@ -2218,6 +2227,44 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showRenamePlanDialog(PlanSemanal plan) {
+    final controller = TextEditingController(text: plan.nombre);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E26),
+        title: const Text('Renombrar Plan Semanal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Nombre del Plan',
+            labelStyle: TextStyle(color: Colors.white70),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFF6B00))),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                Navigator.of(ctx).pop();
+                ref.read(weeklyPlanProvider.notifier).updateWeeklyPlanName(plan.id, newName);
+              }
+            },
+            child: const Text('Guardar', style: TextStyle(color: Color(0xFFFF6B00), fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

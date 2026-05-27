@@ -120,6 +120,17 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
     state = state.copyWith(clearPlan: true);
   }
 
+  Future<void> updateWeeklyPlanName(String planId, String newName) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final updatedPlan = await _api.updateWeeklyPlanName(planId, newName);
+      final updatedPlanes = state.planes.map((p) => p.id == planId ? updatedPlan : p).toList();
+      state = state.copyWith(isLoading: false, plan: updatedPlan, planes: updatedPlanes);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   Future<void> modifyWeeklyPlan({
     required String planId,
     required String instrucciones,

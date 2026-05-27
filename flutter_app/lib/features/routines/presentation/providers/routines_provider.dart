@@ -88,6 +88,17 @@ class RoutinesNotifier extends StateNotifier<RoutinesState> {
       state = state.copyWith(error: e.toString());
     }
   }
+
+  Future<void> updateRutina(String id, Map<String, dynamic> data) async {
+    try {
+      final updated = await _api.updateRutina(id, data);
+      state = state.copyWith(
+        rutinas: state.rutinas.map((r) => r.id == id ? updated : r).toList(),
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
 }
 
 final routinesProvider = StateNotifierProvider<RoutinesNotifier, RoutinesState>((ref) {

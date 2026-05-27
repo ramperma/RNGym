@@ -1551,6 +1551,28 @@ async def get_plan(plan_id: str, current_user: dict = Depends(get_current_user))
     return PlanSemanalResponse.model_validate(plan)
 
 
+@router.put("/plans/{plan_id}", response_model=PlanSemanalResponse)
+async def update_plan_name_endpoint(
+    plan_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+) -> PlanSemanalResponse:
+    from app.repositories import update_plan_semanal, get_plan_by_id
+    from app.db import db_connection_context
+
+    with db_connection_context() as conn:
+        plan = get_plan_by_id(conn, plan_id, current_user["id"])
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "PLAN_NOT_FOUND", "message": "Plan no encontrado"},
+            )
+        
+        updated = update_plan_semanal(conn, plan_id, current_user["id"], payload)
+        _enrich_plan_json(conn, updated.plan_json, current_user["id"])
+    return PlanSemanalResponse.model_validate(updated)
+
+
 @router.delete("/plans/{plan_id}")
 async def delete_plan(plan_id: str, current_user: dict = Depends(get_current_user)) -> dict:
     from app.repositories import delete_plan_semanal, get_plan_by_id

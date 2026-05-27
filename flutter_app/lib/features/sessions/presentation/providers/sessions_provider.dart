@@ -66,6 +66,19 @@ class SessionApi {
       return {};
     }
   }
+
+  Future<Map<String, Map<String, dynamic>>> getPlanDayHistory(String planId, int diaSemana) async {
+    try {
+      final response = await _client.get(
+        '/sessions/plan-day-history',
+        queryParameters: {'plan_id': planId, 'dia_semana': diaSemana},
+      );
+      final data = (response.data as Map<String, dynamic>)['history'] as Map<String, dynamic>? ?? {};
+      return data.map((k, v) => MapEntry(k, v as Map<String, dynamic>));
+    } catch (_) {
+      return {};
+    }
+  }
 }
 
 class SessionsState {
