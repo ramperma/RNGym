@@ -142,21 +142,19 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       }
     }
 
-    // Load active weekly plan
-    final planState = ref.read(weeklyPlanProvider);
-    if (planState.plan == null) {
-      await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: true);
-    }
+    // Siempre recargar el plan activo desde el servidor al abrir la pantalla
+    await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: true);
 
     final currentPlan = ref.read(weeklyPlanProvider).plan;
     if (currentPlan != null && currentPlan.planJson.dias.isNotEmpty) {
       final currentWeekdayIndex = DateTime.now().weekday - 1; // 0 = Lunes, ..., 6 = Domingo
-      final workoutDays = currentPlan.planJson.dias.where((d) => d.tipo == 'workout').toList();
+      final allDays = currentPlan.planJson.dias;
+      final workoutDays = allDays.where((d) => d.tipo == 'workout').toList();
 
-      // 1. Hoy si es día de entreno
-      PlanDia? defaultDay = workoutDays.where((d) => d.diaSemana == currentWeekdayIndex).firstOrNull;
+      // 1. Hoy, sea descanso o entreno
+      PlanDia? defaultDay = allDays.where((d) => d.diaSemana == currentWeekdayIndex).firstOrNull;
 
-      // 2. Próximo día de entreno más cercano (hasta 7 días vista)
+      // 2. Si hoy no existe en el plan, próximo día de entreno
       if (defaultDay == null) {
         for (var offset = 1; offset <= 7; offset++) {
           final nextIndex = (currentWeekdayIndex + offset) % 7;
@@ -165,8 +163,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         }
       }
 
-      // 3. Cualquier día de entreno como último recurso
-      defaultDay ??= workoutDays.firstOrNull ?? currentPlan.planJson.dias.first;
+      // 3. Cualquier día como último recurso
+      defaultDay ??= allDays.first;
 
       _loadDayPlan(defaultDay);
     }
