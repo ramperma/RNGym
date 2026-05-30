@@ -156,11 +156,12 @@ class PlanSemanal {
 
   PlanSemanal copyWith({
     bool? activo,
+    String? nombre,
   }) {
     return PlanSemanal(
       id: id,
       usuarioId: usuarioId,
-      nombre: nombre,
+      nombre: nombre ?? this.nombre,
       objetivo: objetivo,
       nivel: nivel,
       duracionMaxMinutos: duracionMaxMinutos,

@@ -15,6 +15,7 @@ import '../../../exercises/domain/exercise.dart';
 import '../../../ai/data/ai_api.dart';
 import '../../../ai/data/ai_explanation_cache.dart';
 import '../../../ai/presentation/providers/ai_provider.dart';
+import '../../../health_profile/presentation/providers/health_profile_provider.dart';
 import '../../../weekly_plan/domain/plan_semanal.dart';
 import '../providers/sessions_provider.dart';
 import 'package:gym_trainer_app/shared/widgets/full_screen_image_viewer.dart';
@@ -141,38 +142,38 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       }
     }
 
-    // Load active weekly plan
-    final planState = ref.read(weeklyPlanProvider);
-    if (planState.plan == null) {
-      await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: true);
-    }
+    // Siempre recargar el plan activo desde el servidor al abrir la pantalla
+    await ref.read(weeklyPlanProvider.notifier).loadPlans(soloActivos: true);
 
     final currentPlan = ref.read(weeklyPlanProvider).plan;
     if (currentPlan != null && currentPlan.planJson.dias.isNotEmpty) {
       final currentWeekdayIndex = DateTime.now().weekday - 1; // 0 = Lunes, ..., 6 = Domingo
-      // Find a PlanDia that matches this weekday or fallback
-      PlanDia? defaultDay;
-      for (var d in currentPlan.planJson.dias) {
-        if (d.diaSemana == currentWeekdayIndex) {
-          defaultDay = d;
-          break;
+      final allDays = currentPlan.planJson.dias;
+      final workoutDays = allDays.where((d) => d.tipo == 'workout').toList();
+
+      // 1. Hoy, sea descanso o entreno
+      PlanDia? defaultDay = allDays.where((d) => d.diaSemana == currentWeekdayIndex).firstOrNull;
+
+      // 2. Si hoy no existe en el plan, próximo día de entreno
+      if (defaultDay == null) {
+        for (var offset = 1; offset <= 7; offset++) {
+          final nextIndex = (currentWeekdayIndex + offset) % 7;
+          defaultDay = workoutDays.where((d) => d.diaSemana == nextIndex).firstOrNull;
+          if (defaultDay != null) break;
         }
       }
-      defaultDay ??= currentPlan.planJson.dias.firstWhere(
-        (d) => d.tipo == 'workout',
-        orElse: () => currentPlan.planJson.dias.first,
-      );
+
+      // 3. Cualquier día como último recurso
+      defaultDay ??= allDays.first;
 
       _loadDayPlan(defaultDay);
     }
   }
 
   Future<void> _loadDayPlan(PlanDia dayPlan) async {
-    // Fetch previous week's max weights/reps (fire-and-forget-safe — returns {} on error)
-    final sessionApi = ref.read(sessionApiProvider);
-    final history = await sessionApi.getLastWeekHistory();
-
     if (!mounted) return;
+
+    // 1. Cargar el plan del día inmediatamente para que el cambio de interfaz sea instantáneo
     setState(() {
       _selectedDayPlan = dayPlan;
       _workoutRecords.clear();
@@ -182,24 +183,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       for (var bloque in dayPlan.bloques) {
         for (var ex in bloque.ejercicios) {
           final targetReps = int.tryParse(ex.repeticiones.split('-').first) ?? 10;
-
-          // Try to find last-week data using fuzzy name matching
-          double defaultWeight = 20.0;
-          int defaultReps = targetReps;
-          final histEntry = _findHistoryEntry(history, ex.nombreEjercicio);
-          if (histEntry != null) {
-            final w = histEntry['max_peso_kg'];
-            final r = histEntry['max_reps'];
-            if (w != null) defaultWeight = (w as num).toDouble();
-            if (r != null) defaultReps = r as int;
-          }
-
           _workoutRecords[ex.nombreEjercicio] = List.generate(
             ex.series,
             (index) => WorkoutSetRecord(
               setIndex: index + 1,
-              weight: defaultWeight,
-              reps: defaultReps,
+              weight: 20.0,
+              reps: targetReps,
               isCompleted: false,
             ),
           );
@@ -210,7 +199,52 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         _startTimer();
       }
     });
+    
     _saveWorkoutState();
+
+    // 2. Cargar historial del plan+día en segundo plano y aplicar progresión
+    try {
+      final sessionApi = ref.read(sessionApiProvider);
+      final plan = ref.read(weeklyPlanProvider).plan;
+      final progresion = (ref.read(healthProfileProvider).perfil?.porcentajeProgresion ?? 0.0) / 100.0;
+
+      Map<String, Map<String, dynamic>> history = {};
+      if (plan != null) {
+        history = await sessionApi.getPlanDayHistory(plan.id, dayPlan.diaSemana);
+      }
+      // Fallback al historial global si no hay datos específicos del plan+día
+      if (history.isEmpty) {
+        history = await sessionApi.getLastWeekHistory();
+      }
+
+      if (!mounted || _selectedDayPlan != dayPlan) return;
+
+      setState(() {
+        for (var bloque in dayPlan.bloques) {
+          for (var ex in bloque.ejercicios) {
+            final histEntry = _findHistoryEntry(history, ex.nombreEjercicio);
+            if (histEntry != null) {
+              final rawWeight = histEntry['max_peso_kg'];
+              final records = _workoutRecords[ex.nombreEjercicio];
+              if (records != null && rawWeight != null) {
+                final lastWeight = (rawWeight as num).toDouble();
+                final progressive = progresion > 0
+                    ? ((lastWeight * (1 + progresion) * 2).round() / 2.0)
+                    : lastWeight;
+                for (var rec in records) {
+                  if (!rec.isCompleted) {
+                    rec.weight = progressive;
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      _saveWorkoutState();
+    } catch (_) {
+      // Ignorar fallos de historial en segundo plano para no romper la experiencia
+    }
   }
 
   Map<String, dynamic>? _findHistoryEntry(Map<String, Map<String, dynamic>> history, String exerciseName) {
@@ -492,8 +526,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       final sessionApi = ref.read(sessionApiProvider);
       
       // 1. Create a completed training session
+      final currentPlan = ref.read(weeklyPlanProvider).plan;
       final session = await sessionApi.createSession({
         'rutina_id': null,
+        'plan_semanal_id': currentPlan?.id,
+        'dia_semana': _selectedDayPlan!.diaSemana,
         'nombre': 'Sesión: ${_selectedDayPlan!.nombreDia} (${_selectedDayPlan!.tipo == 'workout' ? 'Entreno' : 'Recuperación'})',
         'fecha_inicio': DateTime.now().subtract(Duration(seconds: _elapsedSeconds)).toIso8601String(),
         'fecha_fin': DateTime.now().toIso8601String(),

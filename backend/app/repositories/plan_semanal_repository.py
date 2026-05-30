@@ -5,6 +5,12 @@ from app.models.plan_semanal import PlanSemanal
 
 
 def create_plan_semanal(conn: Connection, usuario_id: str, data: dict) -> PlanSemanal:
+    # Deactivate all existing plans for this user before creating a new active one
+    conn.execute(
+        update(PlanSemanal.__table__)
+        .where(PlanSemanal.usuario_id == usuario_id)
+        .values(activo=False)
+    )
     plan = PlanSemanal(usuario_id=usuario_id, **data)
     conn.add(plan)
     conn.commit()

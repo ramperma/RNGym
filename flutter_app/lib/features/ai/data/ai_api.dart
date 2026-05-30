@@ -25,6 +25,7 @@ class AIApi {
     int? porcentajeMaquinasGuiadas,
     int? porcentajePesoLibre,
     int minEjerciciosPorSesion = 4,
+    bool esEnCasa = false,
   }) async {
     final response = await _client.post('/ai/weekly-plan', options: Options(receiveTimeout: const Duration(seconds: 180)), data: {
       'objetivo': objetivo,
@@ -40,6 +41,7 @@ class AIApi {
       'porcentaje_maquinas_guiadas': porcentajeMaquinasGuiadas,
       'porcentaje_peso_libre': porcentajePesoLibre,
       'min_ejercicios_por_sesion': minEjerciciosPorSesion,
+      'es_en_casa': esEnCasa,
     });
     final data = response.data as Map<String, dynamic>;
     return PlanSemanal.fromJson(data['plan_guardado'] as Map<String, dynamic>);
@@ -114,6 +116,11 @@ class AIApi {
 
   Future<void> deleteWeeklyPlan(String planId) async {
     await _client.delete('/ai/plans/$planId');
+  }
+
+  Future<PlanSemanal> updateWeeklyPlanName(String planId, String newName) async {
+    final response = await _client.put('/ai/plans/$planId', data: {'nombre': newName});
+    return PlanSemanal.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<PlanSemanal> activateWeeklyPlan(String planId) async {

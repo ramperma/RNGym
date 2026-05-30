@@ -19,6 +19,8 @@ class SesionEntreno(Base):
     rutina_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False), ForeignKey("rutinas.id"), nullable=True
     )
+    plan_semanal_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    dia_semana: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nombre: Mapped[str | None] = mapped_column(String(150), nullable=True)
 
     fecha_inicio: Mapped[datetime] = mapped_column(DateTime, nullable=False)

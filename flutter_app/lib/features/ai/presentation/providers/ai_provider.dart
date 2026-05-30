@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../data/ai_api.dart';
@@ -61,6 +62,7 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
     int? porcentajeMaquinasGuiadas,
     int? porcentajePesoLibre,
     int minEjerciciosPorSesion = 4,
+    bool esEnCasa = false,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -78,7 +80,10 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
         porcentajeMaquinasGuiadas: porcentajeMaquinasGuiadas,
         porcentajePesoLibre: porcentajePesoLibre,
         minEjerciciosPorSesion: minEjerciciosPorSesion,
+        esEnCasa: esEnCasa,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('active_weekly_plan_id', plan.id);
       state = state.copyWith(isLoading: false, plan: plan, planes: [plan, ...state.planes]);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -88,18 +93,63 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
   Future<void> loadPlans({int skip = 0, int limit = 20, bool soloActivos = false}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final planes = await _api.listPlans(skip: skip, limit: limit, soloActivos: soloActivos);
-      PlanSemanal? activePlan;
-      try {
-        activePlan = planes.firstWhere((p) => p.activo);
-      } catch (_) {
-        activePlan = planes.isNotEmpty ? planes.first : null;
+      final prefs = await SharedPreferences.getInstance();
+      final savedId = prefs.getString('active_weekly_plan_id');
+
+      if (soloActivos) {
+        PlanSemanal? activePlan;
+        
+        // 1. Try loading the savedId plan from the backend if it exists
+        if (savedId != null && savedId.isNotEmpty) {
+          try {
+            activePlan = await _api.getPlan(savedId);
+          } catch (_) {}
+        }
+        
+        // 2. If not found or no savedId, fallback to the backend's active plan
+        if (activePlan == null) {
+          final activePlanes = await _api.listPlans(skip: 0, limit: 1, soloActivos: true);
+          activePlan = activePlanes.isNotEmpty ? activePlanes.first : null;
+        }
+        
+        // 3. Update savedId in SharedPreferences if we found a plan
+        if (activePlan != null) {
+          await prefs.setString('active_weekly_plan_id', activePlan.id);
+        } else {
+          await prefs.remove('active_weekly_plan_id');
+        }
+        
+        state = state.copyWith(isLoading: false, plan: activePlan);
+      } else {
+        // Carga completa: actualizar lista y determinar el plan activo
+        final planes = await _api.listPlans(skip: skip, limit: limit, soloActivos: false);
+        
+        PlanSemanal? activePlan;
+        // 1. Try finding the savedId plan in the fetched list
+        if (savedId != null && savedId.isNotEmpty) {
+          try {
+            activePlan = planes.firstWhere((p) => p.id == savedId);
+          } catch (_) {}
+        }
+        
+        // 2. Fallback to the first plan in the list where active is true
+        if (activePlan == null) {
+          try {
+            activePlan = planes.firstWhere((p) => p.activo);
+          } catch (_) {
+            activePlan = state.plan;
+          }
+        }
+        
+        // 3. Update savedId in SharedPreferences if we found a plan
+        if (activePlan != null) {
+          await prefs.setString('active_weekly_plan_id', activePlan.id);
+        } else {
+          await prefs.remove('active_weekly_plan_id');
+        }
+        
+        state = state.copyWith(isLoading: false, planes: planes, plan: activePlan);
       }
-      state = state.copyWith(
-        isLoading: false,
-        planes: planes,
-        plan: activePlan,
-      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -109,6 +159,8 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final plan = await _api.getPlan(planId);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('active_weekly_plan_id', plan.id);
       state = state.copyWith(isLoading: false, plan: plan);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -116,7 +168,21 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
   }
 
   void clearPlan() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('active_weekly_plan_id');
+    });
     state = state.copyWith(clearPlan: true);
+  }
+
+  Future<void> updateWeeklyPlanName(String planId, String newName) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final updatedPlan = await _api.updateWeeklyPlanName(planId, newName);
+      final updatedPlanes = state.planes.map((p) => p.id == planId ? updatedPlan : p).toList();
+      state = state.copyWith(isLoading: false, plan: updatedPlan, planes: updatedPlanes);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
   }
 
   Future<void> modifyWeeklyPlan({
@@ -143,6 +209,10 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
       await _api.deleteWeeklyPlan(planId);
       final updatedPlanes = state.planes.where((p) => p.id != planId).toList();
       final isCurrentPlanDeleted = state.plan?.id == planId;
+      if (isCurrentPlanDeleted) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('active_weekly_plan_id');
+      }
       state = state.copyWith(
         isLoading: false,
         plan: isCurrentPlanDeleted ? null : state.plan,
@@ -165,6 +235,8 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
           return p.copyWith(activo: false);
         }
       }).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('active_weekly_plan_id', activePlan.id);
       state = state.copyWith(isLoading: false, plan: activePlan, planes: updatedPlanes);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

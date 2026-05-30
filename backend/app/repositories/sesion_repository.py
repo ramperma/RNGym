@@ -204,6 +204,42 @@ def get_last_week_max_per_exercise(
     }
 
 
+def get_plan_day_history(
+    conn,
+    usuario_id: str,
+    plan_id: str,
+    dia_semana: int,
+) -> dict[str, dict]:
+    """Return {exercise_name: {max_peso_kg, max_reps}} from all completed sessions of a specific plan+day."""
+    from sqlalchemy import text as sa_text
+
+    result = conn.execute(
+        sa_text("""
+            SELECT
+                e.nombre AS ejercicio_nombre,
+                MAX(ser.peso_kg) AS max_peso_kg,
+                MAX(ser.repeticiones) AS max_reps
+            FROM sesiones_entreno se
+            JOIN sesion_ejercicio_registros ser ON se.id = ser.sesion_id
+            JOIN ejercicios e ON ser.ejercicio_id = e.id
+            WHERE se.usuario_id = :usuario_id
+              AND se.plan_semanal_id = :plan_id
+              AND se.dia_semana = :dia_semana
+              AND se.estado = 'completada'
+              AND ser.completado = true
+            GROUP BY e.nombre
+        """),
+        {"usuario_id": usuario_id, "plan_id": plan_id, "dia_semana": dia_semana},
+    )
+    return {
+        r.ejercicio_nombre: {
+            "max_peso_kg": float(r.max_peso_kg) if r.max_peso_kg is not None else None,
+            "max_reps": r.max_reps,
+        }
+        for r in result.all()
+    }
+
+
 def get_registros_by_sesion(conn, sesion_id: str) -> list[dict]:
     result = conn.execute(
         select(

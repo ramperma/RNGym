@@ -6,6 +6,7 @@ from app.repositories import (
     create_sesion,
     delete_sesion,
     get_last_week_max_per_exercise,
+    get_plan_day_history,
     get_or_create_ejercicio_by_nombre,
     get_registros_by_sesion,
     get_sesion_by_id,
@@ -98,6 +99,17 @@ def last_week_history(
 ) -> dict:
     with db_connection_context() as conn:
         data = get_last_week_max_per_exercise(conn, current_user["id"], days=days)
+    return {"ok": True, "history": data}
+
+
+@router.get("/plan-day-history")
+def plan_day_history(
+    plan_id: str,
+    dia_semana: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    with db_connection_context() as conn:
+        data = get_plan_day_history(conn, current_user["id"], plan_id, dia_semana)
     return {"ok": True, "history": data}
 
 

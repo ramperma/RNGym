@@ -28,6 +28,8 @@ class SesionEjercicioRegistroResponse(SesionEjercicioRegistroBase):
 
 class SesionEntrenoBase(BaseModel):
     rutina_id: str | None = None
+    plan_semanal_id: str | None = None
+    dia_semana: int | None = None
     nombre: str | None = None
     fecha_inicio: datetime
     fecha_fin: datetime | None = None

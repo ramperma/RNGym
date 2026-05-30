@@ -73,6 +73,7 @@ class AIWeeklyPlanRequest(BaseModel):
     min_ejercicios_por_sesion: int = Field(
         4, ge=2, le=12, description="Mínimo de ejercicios en el bloque principal por sesión"
     )
+    es_en_casa: bool = Field(False, description="Indica si el plan es para entrenar en casa")
 
 
 class PlanSemanalCreate(BaseModel):

@@ -27,6 +27,8 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   String _nivelExperiencia = 'intermedio';
   final List<String> _equiposDisponibles = ['barra', 'mancuernas', 'polea', 'leg_press', 'smith'];
   final List<String> _selectedMachines = [];
+  bool _esEnCasa = false;
+  final List<String> _materialesCasaSeleccionados = ['sin_material'];
 
   final List<String> _diasSemanaNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   final List<String> _diasSeleccionados = [];
@@ -47,7 +49,9 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
     super.initState();
     Future.microtask(() {
       ref.read(machineProvider.notifier).loadMachines();
-      ref.read(weeklyPlanProvider.notifier).loadPlans();
+      if (ref.read(weeklyPlanProvider).planes.isEmpty) {
+        ref.read(weeklyPlanProvider.notifier).loadPlans();
+      }
     });
   }
 
@@ -166,7 +170,7 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                             CircularProgressIndicator(color: Color(0xFFFF6B00)),
                             SizedBox(height: 16),
                             Text(
-                              'Diseñando tu plan con IA...',
+                              'Cargando planes de entrenamiento...',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white70),
                             ),
                           ],
@@ -287,6 +291,94 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                         DropdownMenuItem(value: 'funcional', child: Text('Entrenamiento Funcional')),
                       ],
                       onChanged: (v) => setState(() => _objetivo = v!),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Entorno de entrenamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _esEnCasa = false;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: !_esEnCasa ? const Color(0xFFFF6B00).withOpacity(0.08) : const Color(0xFF0F0F12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: !_esEnCasa ? const Color(0xFFFF6B00) : Colors.white.withOpacity(0.05),
+                                  width: !_esEnCasa ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.fitness_center_rounded,
+                                    color: !_esEnCasa ? const Color(0xFFFF6B00) : Colors.white60,
+                                    size: 26,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Gimnasio',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: !_esEnCasa ? Colors.white : Colors.white60,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _esEnCasa = true;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: _esEnCasa ? const Color(0xFF00E5FF).withOpacity(0.08) : const Color(0xFF0F0F12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _esEnCasa ? const Color(0xFF00E5FF) : Colors.white.withOpacity(0.05),
+                                  width: _esEnCasa ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.home_rounded,
+                                    color: _esEnCasa ? const Color(0xFF00E5FF) : Colors.white60,
+                                    size: 26,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'En Casa',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _esEnCasa ? Colors.white : Colors.white60,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -432,145 +524,190 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-                    const Text('Preferencia de equipamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        '🤖 Máquinas guiadas (Selectorizadas)',
-                        '⛓️ Poleas regulables',
-                        '🏋️ Peso libre (Mancuernas / barras)',
-                      ].map((pref) {
-                        final isSelected = _prefEquipamientoSeleccionados.contains(pref);
-                        return FilterChip(
-                          label: Text(pref),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFFF6B00),
-                          backgroundColor: const Color(0xFF0F0F12),
-                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    if (!_esEnCasa) ...[
+                      const Text('Preferencia de equipamiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          '🤖 Máquinas guiadas (Selectorizadas)',
+                          '⛓️ Poleas regulables',
+                          '🏋️ Peso libre (Mancuernas / barras)',
+                        ].map((pref) {
+                          final isSelected = _prefEquipamientoSeleccionados.contains(pref);
+                          return FilterChip(
+                            label: Text(pref),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFFFF6B00),
+                            backgroundColor: const Color(0xFF0F0F12),
+                            side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _prefEquipamientoSeleccionados.add(pref);
+                                } else {
+                                  _prefEquipamientoSeleccionados.remove(pref);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Distribución de equipamiento',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Define la proporción de tipos de ejercicios',
+                                style: TextStyle(fontSize: 11, color: Colors.white38),
+                              ),
+                            ],
                           ),
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _prefEquipamientoSeleccionados.add(pref);
-                              } else {
-                                _prefEquipamientoSeleccionados.remove(pref);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    const Divider(color: Colors.white10),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Distribución de equipamiento',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Define la proporción de tipos de ejercicios',
-                              style: TextStyle(fontSize: 11, color: Colors.white38),
-                            ),
-                          ],
-                        ),
-                        Switch.adaptive(
-                          value: _personalizarProporcion,
-                          activeColor: const Color(0xFFFF6B00),
-                          onChanged: (val) {
-                            setState(() {
-                              _personalizarProporcion = val;
-                            });
-                          },
+                          Switch.adaptive(
+                            value: _personalizarProporcion,
+                            activeColor: const Color(0xFFFF6B00),
+                            onChanged: (val) {
+                              setState(() {
+                                _personalizarProporcion = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_personalizarProporcion) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F0F12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF), size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Máquinas Guiadas / Poleas', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '$_porcentajeMaquinasGuiadas%',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00E5FF), fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: _porcentajeMaquinasGuiadas.toDouble(),
+                                min: 0,
+                                max: 100,
+                                divisions: 20,
+                                activeColor: const Color(0xFF00E5FF),
+                                inactiveColor: Colors.white.withOpacity(0.05),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _porcentajeMaquinasGuiadas = val.round();
+                                    _porcentajePesoLibre = 100 - _porcentajeMaquinasGuiadas;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.fitness_center_rounded, color: Color(0xFFFF6B00), size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Peso Libre / Mancuernas / Barras', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '$_porcentajePesoLibre%',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6B00), fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: _porcentajePesoLibre.toDouble(),
+                                min: 0,
+                                max: 100,
+                                divisions: 20,
+                                activeColor: const Color(0xFFFF6B00),
+                                inactiveColor: Colors.white.withOpacity(0.05),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _porcentajePesoLibre = val.round();
+                                    _porcentajeMaquinasGuiadas = 100 - _porcentajePesoLibre;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                    if (_personalizarProporcion) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F0F12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF), size: 16),
-                                    SizedBox(width: 6),
-                                    Text('Máquinas Guiadas / Poleas', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                                  ],
-                                ),
-                                Text(
-                                  '$_porcentajeMaquinasGuiadas%',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00E5FF), fontSize: 13),
-                                ),
-                              ],
+                      const SizedBox(height: 20),
+                    ],
+                    if (_esEnCasa) ...[
+                      const Text('Equipamiento casero disponible', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          {'id': 'sin_material', 'label': '⚡ Sin material (Peso corporal)'},
+                          {'id': 'bandas_resistencia', 'label': '🎗️ Bandas de resistencia'},
+                          {'id': 'garrafas_agua', 'label': '🧴 Garrafas de agua (Peso)'},
+                          {'id': 'sillas', 'label': '🪑 Silla / Soporte estable'},
+                        ].map((material) {
+                          final mId = material['id']!;
+                          final mLabel = material['label']!;
+                          final isSelected = _materialesCasaSeleccionados.contains(mId);
+                          return FilterChip(
+                            label: Text(mLabel),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF00E5FF),
+                            backgroundColor: const Color(0xFF0F0F12),
+                            side: BorderSide(color: isSelected ? Colors.transparent : Colors.white12),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
-                            Slider(
-                              value: _porcentajeMaquinasGuiadas.toDouble(),
-                              min: 0,
-                              max: 100,
-                              divisions: 20,
-                              activeColor: const Color(0xFF00E5FF),
-                              inactiveColor: Colors.white.withOpacity(0.05),
-                              onChanged: (val) {
-                                setState(() {
-                                  _porcentajeMaquinasGuiadas = val.round();
-                                  _porcentajePesoLibre = 100 - _porcentajeMaquinasGuiadas;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.fitness_center_rounded, color: Color(0xFFFF6B00), size: 16),
-                                    SizedBox(width: 6),
-                                    Text('Peso Libre / Mancuernas / Barras', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                                  ],
-                                ),
-                                Text(
-                                  '$_porcentajePesoLibre%',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6B00), fontSize: 13),
-                                ),
-                              ],
-                            ),
-                            Slider(
-                              value: _porcentajePesoLibre.toDouble(),
-                              min: 0,
-                              max: 100,
-                              divisions: 20,
-                              activeColor: const Color(0xFFFF6B00),
-                              inactiveColor: Colors.white.withOpacity(0.05),
-                              onChanged: (val) {
-                                setState(() {
-                                  _porcentajePesoLibre = val.round();
-                                  _porcentajeMaquinasGuiadas = 100 - _porcentajePesoLibre;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _materialesCasaSeleccionados.add(mId);
+                                } else {
+                                  if (mId == 'sin_material' && _materialesCasaSeleccionados.length == 1) {
+                                    return;
+                                  }
+                                  _materialesCasaSeleccionados.remove(mId);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
+                      const SizedBox(height: 20),
                     ],
                     const SizedBox(height: 20),
                     const Text('Notas adicionales o médicas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
@@ -589,86 +726,88 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                       style: const TextStyle(fontSize: 14, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF19191F),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.15)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.auto_awesome, color: const Color(0xFFFF6B00), size: 18),
-                                    const SizedBox(width: 8),
-                                    const Expanded(
-                                      child: Text(
-                                        'Tener en cuenta mis máquinas',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                    if (!_esEnCasa) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF19191F),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.15)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.auto_awesome, color: const Color(0xFFFF6B00), size: 18),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Tener en cuenta mis máquinas',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Si está activado, la IA integrará obligatoriamente tus máquinas del gym.',
-                                  style: TextStyle(fontSize: 11, color: Colors.white54),
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Si está activado, la IA integrará obligatoriamente tus máquinas del gym.',
+                                    style: TextStyle(fontSize: 11, color: Colors.white54),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Switch.adaptive(
-                            value: _usarMisMaquinas,
-                            activeColor: const Color(0xFFFF6B00),
-                            onChanged: (val) {
-                              setState(() {
-                                _usarMisMaquinas = val;
-                              });
-                            },
-                          ),
-                        ],
+                            Switch.adaptive(
+                              value: _usarMisMaquinas,
+                              activeColor: const Color(0xFFFF6B00),
+                              onChanged: (val) {
+                                setState(() {
+                                  _usarMisMaquinas = val;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (machineState.machines.isNotEmpty) ...[
-                      const Divider(color: Colors.white10),
-                      const SizedBox(height: 12),
-                      const Text('Tus máquinas guardadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: machineState.machines.map((m) {
-                          final selected = _selectedMachines.contains(m.id);
-                          return FilterChip(
-                            label: Text(m.nombre, style: TextStyle(color: selected ? Colors.black : Colors.white70, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
-                            selected: selected,
-                            selectedColor: const Color(0xFFFF6B00),
-                            backgroundColor: const Color(0xFF0F0F12),
-                            side: BorderSide(color: selected ? Colors.transparent : Colors.white12),
-                            onSelected: (v) {
-                              setState(() {
-                                if (v) {
-                                  _selectedMachines.add(m.id);
-                                } else {
-                                  _selectedMachines.remove(m.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
+                      if (machineState.machines.isNotEmpty) ...[
+                        const Divider(color: Colors.white10),
+                        const SizedBox(height: 12),
+                        const Text('Tus máquinas guardadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white70)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: machineState.machines.map((m) {
+                            final selected = _selectedMachines.contains(m.id);
+                            return FilterChip(
+                              label: Text(m.nombre, style: TextStyle(color: selected ? Colors.black : Colors.white70, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                              selected: selected,
+                              selectedColor: const Color(0xFFFF6B00),
+                              backgroundColor: const Color(0xFF0F0F12),
+                              side: BorderSide(color: selected ? Colors.transparent : Colors.white12),
+                              onSelected: (v) {
+                                setState(() {
+                                  if (v) {
+                                    _selectedMachines.add(m.id);
+                                  } else {
+                                    _selectedMachines.remove(m.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 16),
                     ],
-                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       height: 52,
@@ -754,6 +893,13 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.edit_rounded, color: Color(0xFFFF6B00), size: 16),
+                          tooltip: 'Renombrar Plan Semanal',
+                          onPressed: () => _showRenamePlanDialog(plan),
                         ),
                         const SizedBox(width: 8),
                         if (plan.activo)
@@ -1583,15 +1729,16 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
       diasPorSemana: _diasPorSemana,
       duracionMaxMinutos: _duracionMax,
       nivelExperiencia: _nivelExperiencia,
-      equipoDisponible: _equiposDisponibles,
-      maquinasUsuarioIds: _usarMisMaquinas ? allMachineIds : const [],
+      equipoDisponible: _esEnCasa ? _materialesCasaSeleccionados : _equiposDisponibles,
+      maquinasUsuarioIds: (_usarMisMaquinas && !_esEnCasa) ? allMachineIds : const [],
       lesionesOLimitaciones: _lesionesSeleccionadas,
       notasAdicionales: _notasAdicionalesCtrl.text.trim().isEmpty ? null : _notasAdicionalesCtrl.text.trim(),
       diasEntrenoSeleccionados: _diasSeleccionados,
-      preferenciasEquipamiento: _prefEquipamientoSeleccionados,
-      porcentajeMaquinasGuiadas: _personalizarProporcion ? _porcentajeMaquinasGuiadas : null,
-      porcentajePesoLibre: _personalizarProporcion ? _porcentajePesoLibre : null,
+      preferenciasEquipamiento: _esEnCasa ? const [] : _prefEquipamientoSeleccionados,
+      porcentajeMaquinasGuiadas: (_personalizarProporcion && !_esEnCasa) ? _porcentajeMaquinasGuiadas : null,
+      porcentajePesoLibre: (_personalizarProporcion && !_esEnCasa) ? _porcentajePesoLibre : null,
       minEjerciciosPorSesion: _minEjerciciosPorSesion,
+      esEnCasa: _esEnCasa,
     );
   }
 
@@ -2003,83 +2150,251 @@ class _AIRecommendationScreenState extends ConsumerState<AIRecommendationScreen>
   void _showPlansSheet(BuildContext context, List<PlanSemanal> planes) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF131317),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      // Consumer allows reactive updates when plans are deleted inside the sheet
       builder: (ctx) => Consumer(
         builder: (ctx, sheetRef, _) {
-          final currentPlanes = sheetRef.watch(weeklyPlanProvider).planes;
-          return Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('Planes Semanales Guardados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              const Divider(color: Colors.white10),
-              Expanded(
-                child: currentPlanes.isEmpty
-                    ? const Center(child: Text('No hay planes guardados', style: TextStyle(color: Colors.white30)))
-                    : ListView.builder(
-                        itemCount: currentPlanes.length,
-                        itemBuilder: (_, i) {
-                          final p = currentPlanes[i];
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1C1C24),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.04)),
-                            ),
-                            child: ListTile(
-                              leading: const Icon(Icons.event_note_rounded, color: Color(0xFFFF8C00)),
-                              title: Text(p.nombre, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                              subtitle: Text('${p.objetivo.toUpperCase()} · ${p.nivel}', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF3366)),
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                      backgroundColor: const Color(0xFF15151B),
-                                      title: const Text('¿Eliminar plan?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                      content: const Text('Esta acción eliminará permanentemente esta planificación semanal.', style: TextStyle(color: Colors.white70)),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar', style: TextStyle(color: Colors.white30))),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(c, true),
-                                          child: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF3366), fontWeight: FontWeight.bold)),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await sheetRef.read(weeklyPlanProvider.notifier).deleteWeeklyPlan(p.id);
-                                    // List updates reactively via Consumer — no need to pop
-                                    if (ctx.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          backgroundColor: Color(0xFFFF3366),
-                                          content: Text('Plan semanal eliminado.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                sheetRef.read(weeklyPlanProvider.notifier).loadPlan(p.id);
-                              },
-                            ),
-                          );
-                        },
+          final planState = sheetRef.watch(weeklyPlanProvider);
+          final currentPlanes = planState.planes;
+          final activePlanId = planState.plan?.id;
+          return DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.92,
+            expand: false,
+            builder: (_, scrollCtrl) => Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.layers_rounded, color: Color(0xFFFF6B00), size: 22),
+                      SizedBox(width: 10),
+                      Text(
+                        'Mis Planes Semanales',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  child: Text(
+                    'Toca la estrella ★ para establecer un plan como predeterminado en el entrenamiento.',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.45)),
+                  ),
+                ),
+                const Divider(color: Colors.white10),
+                Expanded(
+                  child: currentPlanes.isEmpty
+                      ? const Center(child: Text('No hay planes guardados', style: TextStyle(color: Colors.white30)))
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          itemCount: currentPlanes.length,
+                          itemBuilder: (_, i) {
+                            final p = currentPlanes[i];
+                            final isActive = p.id == activePlanId;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? const Color(0xFF1A2A1A)
+                                    : const Color(0xFF1C1C24),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isActive
+                                      ? const Color(0xFF4CAF50).withOpacity(0.5)
+                                      : Colors.white.withOpacity(0.05),
+                                  width: isActive ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    // Botón predeterminar (estrella)
+                                    GestureDetector(
+                                      onTap: isActive
+                                          ? null
+                                          : () async {
+                                              await sheetRef
+                                                  .read(weeklyPlanProvider.notifier)
+                                                  .activateWeeklyPlan(p.id);
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    backgroundColor: const Color(0xFF4CAF50),
+                                                    content: Text(
+                                                      '«${p.nombre}» es ahora tu plan predeterminado ⚡',
+                                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      child: Tooltip(
+                                        message: isActive ? 'Plan predeterminado' : 'Establecer como predeterminado',
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: isActive
+                                                ? const Color(0xFF4CAF50).withOpacity(0.15)
+                                                : Colors.white.withOpacity(0.05),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            isActive ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            color: isActive ? const Color(0xFF4CAF50) : Colors.white30,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Info del plan
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.pop(ctx);
+                                          sheetRef.read(weeklyPlanProvider.notifier).loadPlan(p.id);
+                                        },
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    p.nombre,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (isActive) ...[
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF4CAF50).withOpacity(0.15),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                      border: Border.all(color: const Color(0xFF4CAF50), width: 0.8),
+                                                    ),
+                                                    child: const Text(
+                                                      'PREDETERMINADO',
+                                                      style: TextStyle(color: Color(0xFF4CAF50), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${p.objetivo.toUpperCase()} · ${p.nivel} · ${p.diasEntrenoObjetivo} días/sem',
+                                              style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    // Botón eliminar
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF3366), size: 20),
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            backgroundColor: const Color(0xFF15151B),
+                                            title: const Text('¿Eliminar plan?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                            content: const Text('Esta acción eliminará permanentemente esta planificación semanal.', style: TextStyle(color: Colors.white70)),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar', style: TextStyle(color: Colors.white30))),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(c, true),
+                                                child: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF3366), fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await sheetRef.read(weeklyPlanProvider.notifier).deleteWeeklyPlan(p.id);
+                                          if (ctx.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                backgroundColor: Color(0xFFFF3366),
+                                                content: Text('Plan semanal eliminado.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  void _showRenamePlanDialog(PlanSemanal plan) {
+    final controller = TextEditingController(text: plan.nombre);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E26),
+        title: const Text('Renombrar Plan Semanal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Nombre del Plan',
+            labelStyle: TextStyle(color: Colors.white70),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFF6B00))),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                Navigator.of(ctx).pop();
+                ref.read(weeklyPlanProvider.notifier).updateWeeklyPlanName(plan.id, newName);
+              }
+            },
+            child: const Text('Guardar', style: TextStyle(color: Color(0xFFFF6B00), fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

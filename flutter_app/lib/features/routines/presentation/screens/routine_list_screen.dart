@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:gym_trainer_app/core/theme/app_colors.dart';
 import 'package:gym_trainer_app/shared/widgets/gym_card.dart';
+import 'package:gym_trainer_app/features/routines/domain/rutina.dart';
 import '../providers/routines_provider.dart';
 
 class RoutineListScreen extends ConsumerStatefulWidget {
@@ -125,10 +126,12 @@ class _RoutineListScreenState extends ConsumerState<RoutineListScreen> {
                   icon: Icon(Icons.more_vert, color: AppColors.textMuted),
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'view', child: Text('Ver detalle')),
+                    const PopupMenuItem(value: 'rename', child: Text('Renombrar')),
                     const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                   ],
                   onSelected: (value) {
                     if (value == 'view') context.push('/routines/${rutina.id}');
+                    if (value == 'rename') _showRenameDialog(rutina);
                     if (value == 'delete') _confirmDelete(rutina.id);
                   },
                 ),
@@ -154,6 +157,40 @@ class _RoutineListScreenState extends ConsumerState<RoutineListScreen> {
               ref.read(routinesProvider.notifier).deleteRutina(id);
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRenameDialog(Rutina rutina) {
+    final controller = TextEditingController(text: rutina.nombre);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Renombrar rutina'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Nombre de la rutina',
+            hintText: 'Ej. Empuje / Fuerza',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                Navigator.of(ctx).pop();
+                ref.read(routinesProvider.notifier).updateRutina(rutina.id, {'nombre': newName});
+              }
+            },
+            child: const Text('Guardar'),
           ),
         ],
       ),
