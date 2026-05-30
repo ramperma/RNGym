@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -227,7 +228,22 @@ class WeeklyPlanNotifier extends StateNotifier<WeeklyPlanState> {
       final updatedPlanes = state.planes.map((p) => p.id == planId ? updatedPlan : p).toList();
       state = state.copyWith(isLoading: false, plan: updatedPlan, planes: updatedPlanes);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      String errorMsg;
+      if (e is DioException && e.type == DioExceptionType.receiveTimeout) {
+        errorMsg = 'La IA tardó demasiado en responder. Inténtalo de nuevo.';
+      } else if (e is DioException && e.response?.data != null) {
+        final detail = e.response!.data;
+        if (detail is Map && detail['detail'] is Map) {
+          errorMsg = detail['detail']['message'] as String? ?? e.toString();
+        } else if (detail is Map && detail['detail'] is String) {
+          errorMsg = detail['detail'] as String;
+        } else {
+          errorMsg = e.toString();
+        }
+      } else {
+        errorMsg = e.toString();
+      }
+      state = state.copyWith(isLoading: false, error: errorMsg);
     }
   }
 }

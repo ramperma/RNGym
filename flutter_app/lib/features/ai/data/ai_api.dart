@@ -26,7 +26,7 @@ class AIApi {
     int? porcentajePesoLibre,
     int minEjerciciosPorSesion = 4,
   }) async {
-    final response = await _client.post('/ai/weekly-plan', data: {
+    final response = await _client.post('/ai/weekly-plan', options: Options(receiveTimeout: const Duration(seconds: 180)), data: {
       'objetivo': objetivo,
       'dias_por_semana': diasPorSemana,
       'duracion_max_minutos': duracionMaxMinutos,
@@ -154,7 +154,7 @@ class AIApi {
     required int semanasRotacion,
     required double porcentajeProgresion,
   }) async {
-    final response = await _client.post('/ai/evolve-plan', data: {
+    final response = await _client.post('/ai/evolve-plan', options: Options(receiveTimeout: const Duration(seconds: 180)), data: {
       'plan_id': planId,
       'semanas_rotacion': semanasRotacion,
       'porcentaje_progresion': porcentajeProgresion,
